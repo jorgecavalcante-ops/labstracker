@@ -6,7 +6,6 @@
     <title>LabTrack Pro - IFTO Araguaína</title>
     <script>
         // Emergency fix for "Cannot set property fetch of #<Window> which has only a getter"
-        // This can happen in environments where window.fetch is read-only and a library tries to polyfill it.
         (function() {
             var _fetch = window.fetch;
             try {
@@ -18,6 +17,27 @@
                 });
             } catch(e) {}
         })();
+
+        // ===== ROTEAMENTO SPA =====
+        // Detecta a path atual e sincroniza com o estado do app
+        function getCurrentRoute() {
+            // Remove trailing slash e base path se houver
+            let path = window.location.pathname;
+            // Se houver base path (ex: /labstrach.pages.dev), remova
+            path = path.replace(/^\/[^\/]+\.pages\.dev/, '');
+            // Remove trailing slash
+            path = path.replace(/\/$/, '') || '/';
+            return path;
+        }
+
+        function navigateTo(path) {
+            // Normaliza path
+            if (!path.startsWith('/')) path = '/' + path;
+            // Usa history API para não recarregar página
+            window.history.pushState({}, '', path);
+            // Trigger evento customizado para Alpine atualizar
+            window.dispatchEvent(new CustomEvent('routechange'));
+        }
     </script>
     <script src="https://cdn.tailwindcss.com/3.4.15"></script>
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.446.0/dist/umd/lucide.min.js"></script>
@@ -35,19 +55,16 @@
             --text-muted: #71717a;
             --text-dim: #a1a1aa;
         }
-
         body {
             font-family: 'Inter', sans-serif;
             background-color: var(--bg-base);
             color: #e4e4e7;
             overflow-x: hidden;
         }
-
         .font-mono {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
         }
-
         .sidebar {
             background-color: var(--bg-sidebar);
             border-right: 1px solid var(--border-dim);
@@ -59,28 +76,23 @@
             z-index: 50;
             transition: transform 0.3s ease-in-out;
         }
-
-        .sidebar.mobile-hidden {
+        .[sidebar.mobile](http://sidebar.mobile)-hidden {
             transform: translateX(-100%);
         }
-
         @media (min-width: 768px) {
-            .sidebar.mobile-hidden {
+            .[sidebar.mobile](http://sidebar.mobile)-hidden {
                 transform: translateX(0);
             }
         }
-
         .main-content {
             transition: margin-left 0.3s ease-in-out;
             min-height: 100vh;
         }
-
         @media (min-width: 768px) {
             .main-content {
                 margin-left: var(--sidebar-width);
             }
         }
-
         .nav-item {
             padding: 10px 24px;
             display: flex;
@@ -93,19 +105,19 @@
             border-left: 3px solid transparent;
             width: 100%;
             text-align: left;
+            cursor: pointer;
+            background: none;
+            border: none;
         }
-
         .nav-item:hover {
             color: #fff;
             background: #1a1a1c;
         }
-
         .nav-item.active {
             color: #fff;
             background: #1e1e21;
             border-left-color: var(--accent-blue);
         }
-
         .main-header {
             height: 64px;
             border-bottom: 1px solid var(--border-dim);
@@ -114,21 +126,18 @@
             align-items: center;
             padding: 0 32px;
         }
-
         .meta-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 16px;
             margin-bottom: 32px;
         }
-
         .meta-box {
             background: var(--bg-card);
             padding: 16px;
             border-radius: 8px;
             border: 1px solid var(--border-dim);
         }
-
         .meta-label {
             font-size: 10px;
             text-transform: uppercase;
@@ -137,26 +146,22 @@
             font-weight: 700;
             margin-bottom: 4px;
         }
-
         .meta-value {
             font-size: 13px;
             font-weight: 600;
             color: #f4f4f5;
         }
-
         .procedure-card {
             background: var(--bg-base);
             border: 1px solid var(--border-dim);
             padding: 24px;
             border-radius: 8px;
         }
-
         .procedure-table {
             width: 100%;
             border-collapse: collapse;
             font-size: 12px;
         }
-
         .procedure-table th {
             text-align: left;
             background: var(--bg-card);
@@ -165,14 +170,12 @@
             font-weight: 600;
             border-bottom: 1px solid var(--border-dim);
         }
-
         .procedure-table td {
             padding: 12px;
             border-bottom: 1px solid #1f1f23;
             vertical-align: top;
             color: #d1d1d6;
         }
-
         .eq-card {
             padding: 16px 20px;
             background: #0c0c0e;
@@ -181,12 +184,10 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-
         .eq-card:hover {
             background: #161619;
             border-color: #3f3f46;
         }
-
         .status-pill {
             padding: 4px 8px;
             border-radius: 4px;
@@ -196,21 +197,19 @@
             background: rgba(16, 185, 129, 0.1);
             color: #10b981;
         }
-
         .tech-label {
             font-family: 'JetBrains Mono', monospace;
             font-size: 11px;
             color: var(--accent-blue);
         }
-
         .lab-hero-card {
             background: var(--bg-card);
             border: 1px solid var(--border-dim);
             padding: 32px;
             border-radius: 12px;
             transition: all 0.3s;
+            cursor: pointer;
         }
-
         .lab-hero-card:hover {
             border-color: var(--accent-blue);
             background: #1c1c20;
@@ -229,7 +228,6 @@
          x-transition:leave-start="opacity-100"
          x-transition:leave-end="opacity-0">
     </div>
-
     <!-- Sidebar -->
     <aside class="sidebar flex flex-col" :class="sidebarOpen ? '' : 'mobile-hidden'">
         <div class="flex flex-col h-full">
@@ -245,10 +243,9 @@
                     <i data-lucide="x" class="w-6 h-6"></i>
                 </button>
             </div>
-
             <!-- Navigation -->
             <nav class="flex-1 space-y-1">
-                <button @click="view = 'home'; selectedLab = null" class="nav-item" :class="view === 'home' ? 'active' : ''">
+                <button @click="goHome()" class="nav-item" :class="isActive('/') ? 'active' : ''">
                     <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
                     <span>Dashboard</span>
                 </button>
@@ -256,15 +253,13 @@
                 <div class="px-6 pt-6 pb-2">
                     <span class="text-[10px] uppercase tracking-widest font-bold text-zinc-600">Laboratórios</span>
                 </div>
-
                 <template x-for="lab in labs" :key="lab.id">
-                    <button @click="openLab(lab)" class="nav-item" :class="selectedLab?.id === lab.id && view !== 'home' ? 'active' : ''">
+                    <button @click="goToLab(lab)" class="nav-item" :class="isActive('/' + lab.id) ? 'active' : ''">
                         <i :data-lucide="lab.icon" class="w-4 h-4"></i>
                         <span x-text="lab.name"></span>
                     </button>
                 </template>
             </nav>
-
             <div class="p-6">
                 <div class="bg-zinc-900 rounded-lg p-3 flex items-center gap-3 border border-zinc-800">
                     <div class="h-6 w-6 rounded bg-blue-500/20 flex items-center justify-center">
@@ -275,7 +270,6 @@
             </div>
         </div>
     </aside>
-
     <!-- Main Content -->
     <main class="main-content flex-1 min-h-screen">
         
@@ -286,15 +280,14 @@
                 </button>
                 <div class="flex items-center gap-2">
                     <span class="text-zinc-500 hidden sm:inline">Lab</span>
-                    <span class="text-blue-500 font-semibold" x-text="view === 'home' ? '/ Visão Geral' : '/ ' + selectedLab?.name"></span>
+                    <span class="text-blue-500 font-semibold" x-text="getBreadcrumb()"></span>
                 </div>
             </div>
             <div class="text-[11px] font-mono text-zinc-600 uppercase tracking-widest hidden sm:block">Procedimentos Pop v2.0</div>
         </header>
-
         <div class="p-4 sm:p-8">
             <!-- Home -->
-            <div x-show="view === 'home'" class="space-y-8">
+            <div x-show="currentRoute === '/'" class="space-y-8">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div class="meta-box text-center md:text-left">
                         <div class="meta-label">Total Documentos</div>
@@ -305,12 +298,11 @@
                         <div class="text-2xl font-bold text-white tracking-tight">2026</div>
                     </div>
                 </div>
-
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <template x-for="lab in labs" :key="lab.id">
-                        <div @click="openLab(lab)" class="lab-hero-card cursor-pointer group">
+                        <div @click="goToLab(lab)" class="lab-hero-card">
                             <div class="h-10 w-10 rounded border border-blue-500/20 bg-blue-500/5 flex items-center justify-center mb-6 group-hover:bg-blue-500 group-hover:border-blue-500 transition-all duration-300">
-                                <i :data-lucide="lab.icon" class="w-5 h-5 text-blue-500 group-hover:text-white"></i>
+                                <i :data-lucide="lab.icon" class="w-5 h-5 text-blue-500"></i>
                             </div>
                             <h4 class="font-bold text-sm text-white mb-1" x-text="lab.name"></h4>
                             <p class="text-zinc-500 text-[11px] leading-tight" x-text="lab.description"></p>
@@ -318,15 +310,34 @@
                     </template>
                 </div>
             </div>
-
             <!-- Lab List -->
-            <div x-show="view === 'lab'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                <template x-if="selectedLab?.id === 'multididatico'">
-                    <div id="equipamentos-multididatico" class="col-span-full mb-6">
-                        <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Equipamentos Disponíveis</h3>
-                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-                            <template x-for="(item, index) in selectedLab?.items" :key="index">
-                                <div @click="openItem(item, selectedLab)" class="eq-card group">
+            <div x-show="currentRoute.startsWith('/') && !currentRoute.includes('/item/') && currentRoute !== '/'">
+                <template x-if="selectedLab">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <template x-if="selectedLab.id === 'multididatico'">
+                            <div id="equipamentos-multididatico" class="col-span-full mb-6">
+                                <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Equipamentos Disponíveis</h3>
+                                <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                                    <template x-for="(item, index) in selectedLab.items" :key="index">
+                                        <div @click="goToItem(item, selectedLab, index)" class="eq-card">
+                                            <div class="flex justify-between items-start mb-4">
+                                                <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
+                                                <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
+                                            </div>
+                                            <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
+                                                <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
+                                                <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                        <template x-if="selectedLab.id !== 'multididatico'">
+                            <template x-for="(item, index) in selectedLab.items" :key="index">
+                                <div @click="goToItem(item, selectedLab, index)" class="eq-card">
                                     <div class="flex justify-between items-start mb-4">
                                         <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
                                         <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
@@ -339,162 +350,131 @@
                                     </div>
                                 </div>
                             </template>
-                        </div>
+                        </template>
                     </div>
-                </template>
-                <template x-if="selectedLab?.id !== 'multididatico'">
-                    <template x-for="(item, index) in selectedLab?.items" :key="index">
-                        <div @click="openItem(item, selectedLab)" class="eq-card group">
-                            <div class="flex justify-between items-start mb-4">
-                                <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
-                                <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
-                            </div>
-                            <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
-                            <div class="flex items-center gap-2">
-                                <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
-                                <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
-                                <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
-                            </div>
-                        </div>
-                    </template>
                 </template>
             </div>
-
             <!-- Detail -->
-            <div x-show="view === 'detail'" class="max-w-5xl mx-auto pb-20">
-                <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-6">
+            <div x-show="currentRoute.includes('/item/')" class="max-w-5xl mx-auto pb-20">
+                <template x-if="selectedItem">
                     <div>
-                        <button @click="view = 'lab'" class="text-[11px] uppercase font-bold text-zinc-500 hover:text-white flex items-center gap-2 mb-6 group">
-                            <i data-lucide="arrow-left" class="w-3 h-3 group-hover:-translate-x-1 transition-transform"></i> Voltar à Lista
-                        </button>
-                        <h2 class="text-3xl font-extrabold text-white tracking-tighter" x-text="selectedItem?.name"></h2>
-                        <div class="tech-label mt-2" x-text="'ID TÉCNICO: ' + (selectedItem?.model || 'PROTOCOLO-GERAL')"></div>
-                    </div>
-                    <div class="flex items-center gap-4">
-                        <div class="status-pill scale-110">Operacional</div>
-                    </div>
-                </div>
-
-                <!-- Protocol Section -->
-                <div class="mb-12">
-                    <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Protocolo Operacional</h3>
-                    <div class="procedure-card bg-zinc-900/50 border-zinc-800 mb-8">
-                        <div class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-line" x-text="selectedItem?.procedure"></div>
-                    </div>
-
-                    <template x-if="selectedItem?.tables?.length">
-                        <div class="space-y-6">
-                            <template x-for="table in selectedItem.tables">
-                                <div class="border border-zinc-800 rounded-xl overflow-hidden">
-                                    <div class="px-4 py-2 bg-zinc-900/80 border-b border-zinc-800">
-                                        <span class="text-[10px] font-bold uppercase text-zinc-400" x-text="table.title"></span>
-                                    </div>
-                                    <div class="overflow-x-auto">
-                                        <table class="procedure-table">
-                                            <thead>
-                                                <tr>
-                                                    <template x-for="header in table.headers">
-                                                        <th x-text="header"></th>
-                                                    </template>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                <template x-for="row in table.rows">
-                                                    <tr>
-                                                        <template x-for="cell in row">
-                                                            <td x-text="cell"></td>
+                        <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-6">
+                            <div>
+                                <button @click="goBack()" class="text-[11px] uppercase font-bold text-zinc-500 hover:text-white flex items-center gap-2 mb-6 group">
+                                    <i data-lucide="arrow-left" class="w-3 h-3 group-hover:-translate-x-1 transition-transform"></i> Voltar à Lista
+                                </button>
+                                <h2 class="text-3xl font-extrabold text-white tracking-tighter" x-text="selectedItem.name"></h2>
+                                <div class="tech-label mt-2" x-text="'ID TÉCNICO: ' + (selectedItem.model || 'PROTOCOLO-GERAL')"></div>
+                            </div>
+                            <div class="flex items-center gap-4">
+                                <div class="status-pill scale-110">Operacional</div>
+                            </div>
+                        </div>
+                        <!-- Protocol Section -->
+                        <div class="mb-12">
+                            <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Protocolo Operacional</h3>
+                            <div class="procedure-card bg-zinc-900/50 border-zinc-800 mb-8">
+                                <div class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-line" x-text="selectedItem.procedure"></div>
+                            </div>
+                            <template x-if="selectedItem.tables?.length">
+                                <div class="space-y-6">
+                                    <template x-for="table in selectedItem.tables">
+                                        <div class="border border-zinc-800 rounded-xl overflow-hidden">
+                                            <div class="px-4 py-2 bg-zinc-900/80 border-b border-zinc-800">
+                                                <span class="text-[10px] font-bold uppercase text-zinc-400" x-text="table.title"></span>
+                                            </div>
+                                            <div class="overflow-x-auto">
+                                                <table class="procedure-table">
+                                                    <thead>
+                                                        <tr>
+                                                            <template x-for="header in table.headers">
+                                                                <th x-text="header"></th>
+                                                            </template>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <template x-for="row in table.rows">
+                                                            <tr>
+                                                                <template x-for="cell in row">
+                                                                    <td x-text="cell"></td>
+                                                                </template>
+                                                            </tr>
                                                         </template>
-                                                    </tr>
-                                                </template>
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    </template>
                                 </div>
                             </template>
                         </div>
-                    </template>
-                </div>
-
-                <!-- Document Section -->
-                <div class="mb-12">
-                    <div class="flex items-center justify-between mb-6">
-                        <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Documento Técnico</h3>
-                        <template x-if="selectedItem?.pdfUrl && selectedItem?.pdfUrl !== '#'">
-                            <a :href="selectedItem.pdfUrl" 
-                               download 
-                               class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
-                                <i data-lucide="download" class="w-4 h-4"></i>
-                                Baixar PDF
-                            </a>
-                        </template>
-                    </div>
-                    <template x-if="selectedItem?.pdfUrl && selectedItem?.pdfUrl !== '#'">
-                        <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden" style="height: 750px;">
-                            <iframe :src="selectedItem.pdfUrl + '#view=FitH'" 
-                                    type="application/pdf" 
-                                    width="100%" 
-                                    height="100%" 
-                                    class="w-full h-full"
-                                    frameborder="0">
-                                <div class="p-8 text-center">
-                                    <p class="text-zinc-400 mb-4">Seu navegador não suporta visualização de PDF inline.</p>
+                        <!-- Document Section -->
+                        <div class="mb-12">
+                            <div class="flex items-center justify-between mb-6">
+                                <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Documento Técnico</h3>
+                                <template x-if="selectedItem.pdfUrl && selectedItem.pdfUrl !== '#'">
                                     <a :href="selectedItem.pdfUrl" 
                                        download 
-                                       class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
-                                        <i data-lucide="download" class="w-5 h-5"></i>
-                                        Clique aqui para baixar o PDF
+                                       class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                                        <i data-lucide="download" class="w-4 h-4"></i>
+                                        Baixar PDF
                                     </a>
-                                </div>
-                            </iframe>
-                        </div>
-                    </template>
-                    <template x-if="!selectedItem?.pdfUrl || selectedItem?.pdfUrl === '#'">
-                        <div class="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl p-16 text-center">
-                            <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <i data-lucide="file-question" class="w-8 h-8 text-zinc-600"></i>
+                                </template>
                             </div>
-                            <h3 class="text-zinc-300 font-bold mb-2">Visualização Indisponível</h3>
-                            <p class="text-[12px] text-zinc-500 max-w-sm mx-auto">
-                                O arquivo PDF para este Procedimento Operacional Padrão (POP) ainda não foi indexado ou o link está quebrado.
-                            </p>
+                            <template x-if="selectedItem.pdfUrl && selectedItem.pdfUrl !== '#'">
+                                <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden" style="height: 750px;">
+                                    <iframe :src="selectedItem.pdfUrl + '#view=FitH'" 
+                                            type="application/pdf" 
+                                            width="100%" 
+                                            height="100%" 
+                                            class="w-full h-full"
+                                            frameborder="0">
+                                        <div class="p-8 text-center">
+                                            <p class="text-zinc-400 mb-4">Seu navegador não suporta visualização de PDF inline.</p>
+                                            <a :href="selectedItem.pdfUrl" 
+                                               download 
+                                               class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                                                <i data-lucide="download" class="w-5 h-5"></i>
+                                                Clique aqui para baixar o PDF
+                                            </a>
+                                        </div>
+                                    </iframe>
+                                </div>
+                            </template>
+                            <template x-if="!selectedItem.pdfUrl || selectedItem.pdfUrl === '#'">
+                                <div class="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl p-16 text-center">
+                                    <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="file-question" class="w-8 h-8 text-zinc-600"></i>
+                                    </div>
+                                    <h3 class="text-zinc-300 font-bold mb-2">Visualização Indisponível</h3>
+                                    <p class="text-[12px] text-zinc-500 max-w-sm mx-auto">
+                                        O arquivo PDF para este Procedimento Operacional Padrão (POP) ainda não foi indexado ou o link está quebrado.
+                                    </p>
+                                </div>
+                            </template>
                         </div>
-                    </template>
-                </div>
+                    </div>
+                </template>
             </div>
         </div>
     </main>
-
     <script>
         function labApp() {
             return {
                 sidebarOpen: window.innerWidth > 768,
-                view: 'home',
+                currentRoute: '/',
                 selectedLab: null,
                 selectedItem: null,
+                selectedItemIndex: null,
                 labs: [],
                 protocols: [],
-
-
                 
                 get totalItems() {
                     return this.labs.reduce((acc, lab) => acc + lab.items.length, 0);
                 },
 
-                get pageTitle() {
-                    if (this.view === 'home') return 'Visão Geral';
-                    if (this.view === 'lab') return this.selectedLab.name;
-                    if (this.view === 'detail') return 'Detalhes do Equipamento';
-                    return '';
-                },
-
-                get pageDescription() {
-                    if (this.view === 'home') return 'Gerenciamento eletrônico de protocolos e inventário laboratorial.';
-                    if (this.view === 'lab') return this.selectedLab.description;
-                    if (this.view === 'detail') return 'Protocolo operacional padrão detalhado.';
-                    return '';
-                },
-
                 init() {
+                    // Inicializar dados
                     this.labs = [
                         {
                             id: 'analises_clinicas',
@@ -567,25 +547,87 @@
                             ]
                         }
                     ];
-
                     this.protocols = this.labs.find(l => l.id === 'lavagem').items;
                     
-                    window.addEventListener('load', () => lucide.createIcons());
-                    this.$watch('view', () => this.$nextTick(() => lucide.createIcons()));
-                    this.$watch('detailTab', () => this.$nextTick(() => lucide.createIcons()));
-                    this.$watch('selectedLab', () => this.$nextTick(() => lucide.createIcons()));
+                    // Sincronizar com rota ao carregar
+                    this.syncRouteToApp();
+                    
+                    // Listener para quando a rota muda (clique no browser back/forward)
+                    window.addEventListener('popstate', () => this.syncRouteToApp());
+                    window.addEventListener('routechange', () => this.syncRouteToApp());
+                    
+                    // Renderizar ícones Lucide
+                    this.$nextTick(() => {
+                        window.addEventListener('load', () => lucide.createIcons());
+                        this.$watch('currentRoute', () => lucide.createIcons());
+                    });
                 },
 
-                openLab(lab) {
-                    this.selectedLab = lab;
-                    this.view = 'lab';
+                syncRouteToApp() {
+                    let path = getCurrentRoute();
+                    this.currentRoute = path;
+                    
+                    // Se é uma rota de lab (/analises_clinicas, /microscopia, etc)
+                    if (path !== '/' && !path.includes('/item/')) {
+                        const labId = path.substring(1);
+                        this.selectedLab = this.labs.find(l => l.id === labId);
+                        if (!this.selectedLab) {
+                            // Lab não existe, volta para home
+                            this.currentRoute = '/';
+                        }
+                    }
+                    
+                    // Se é uma rota de detalhe (/laboratorio/item/0)
+                    if (path.includes('/item/')) {
+                        const parts = path.split('/item/');
+                        const labId = parts[0].substring(1);
+                        const itemIndex = parseInt(parts[1]);
+                        
+                        this.selectedLab = this.labs.find(l => l.id === labId);
+                        if (this.selectedLab && itemIndex >= 0 && itemIndex < this.selectedLab.items.length) {
+                            this.selectedItem = this.selectedLab.items[itemIndex];
+                            this.selectedItemIndex = itemIndex;
+                        } else {
+                            this.currentRoute = '/';
+                        }
+                    }
                 },
 
-                openItem(item, lab) {
-                    this.selectedItem = item;
-                    this.selectedLab = lab;
-                    this.detailTab = 'protocol';
-                    this.view = 'detail';
+                isActive(route) {
+                    return this.currentRoute === route || (route !== '/' && this.currentRoute.startsWith(route));
+                },
+
+                getBreadcrumb() {
+                    if (this.currentRoute === '/') return '/ Visão Geral';
+                    if (this.selectedLab) {
+                        if (this.selectedItem) {
+                            return `/ ${this.selectedLab.name} / ${this.selectedItem.name}`;
+                        }
+                        return `/ ${this.selectedLab.name}`;
+                    }
+                    return '/ Visão Geral';
+                },
+
+                goHome() {
+                    navigateTo('/');
+                    this.sidebarOpen = false;
+                },
+
+                goToLab(lab) {
+                    navigateTo(`/${lab.id}`);
+                    this.sidebarOpen = false;
+                },
+
+                goToItem(item, lab, index) {
+                    navigateTo(`/${lab.id}/item/${index}`);
+                },
+
+                goBack() {
+                    if (this.selectedItem) {
+                        navigateTo(`/${this.selectedLab.id}`);
+                    } else {
+                        navigateTo('/');
+                    }
                 }
             }
         }
