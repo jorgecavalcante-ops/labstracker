@@ -1,0 +1,6 @@
+{
+  "name": "LabTrack Pro",
+  "description": "Sistema de documentação técnica e galeria de protocolos operacionais padrão (POP) para laboratórios do IFTO Araguaína.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["gallery", "documentation", "laboratory-management"]
+}

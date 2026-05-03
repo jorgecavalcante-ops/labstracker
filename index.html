@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LabTrack Pro - IFTO Araguaína</title>
+    <script>
+        // Emergency fix for "Cannot set property fetch of #<Window> which has only a getter"
+        // This can happen in environments where window.fetch is read-only and a library tries to polyfill it.
+        (function() {
+            var _fetch = window.fetch;
+            try {
+                Object.defineProperty(window, 'fetch', {
+                    get: function() { return _fetch; },
+                    set: function(v) { console.warn('Blocked attempt to overwrite window.fetch'); },
+                    configurable: true,
+                    enumerable: true
+                });
+            } catch(e) {}
+        })();
+    </script>
+    <script src="https://cdn.tailwindcss.com/3.4.15"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@0.446.0/dist/umd/lucide.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono&display=swap');
+        
+        :root {
+            --sidebar-width: 260px;
+            --accent-blue: #3b82f6;
+            --bg-base: #09090b;
+            --bg-sidebar: #121214;
+            --bg-card: #18181b;
+            --border-dim: #27272a;
+            --text-muted: #71717a;
+            --text-dim: #a1a1aa;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-base);
+            color: #e4e4e7;
+            overflow-x: hidden;
+        }
+
+        .font-mono {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+        }
+
+        .sidebar {
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-dim);
+            height: 100vh;
+            width: var(--sidebar-width);
+            position: fixed;
+            left: 0;
+            top: 0;
+            z-index: 50;
+            transition: transform 0.3s ease-in-out;
+        }
+
+        .sidebar.mobile-hidden {
+            transform: translateX(-100%);
+        }
+
+        @media (min-width: 768px) {
+            .sidebar.mobile-hidden {
+                transform: translateX(0);
+            }
+        }
+
+        .main-content {
+            transition: margin-left 0.3s ease-in-out;
+            min-height: 100vh;
+        }
+
+        @media (min-width: 768px) {
+            .main-content {
+                margin-left: var(--sidebar-width);
+            }
+        }
+
+        .nav-item {
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-dim);
+            transition: all 0.2s;
+            border-left: 3px solid transparent;
+            width: 100%;
+            text-align: left;
+        }
+
+        .nav-item:hover {
+            color: #fff;
+            background: #1a1a1c;
+        }
+
+        .nav-item.active {
+            color: #fff;
+            background: #1e1e21;
+            border-left-color: var(--accent-blue);
+        }
+
+        .main-header {
+            height: 64px;
+            border-bottom: 1px solid var(--border-dim);
+            background: var(--bg-base);
+            display: flex;
+            align-items: center;
+            padding: 0 32px;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .meta-box {
+            background: var(--bg-card);
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid var(--border-dim);
+        }
+
+        .meta-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .meta-value {
+            font-size: 13px;
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+
+        .procedure-card {
+            background: var(--bg-base);
+            border: 1px solid var(--border-dim);
+            padding: 24px;
+            border-radius: 8px;
+        }
+
+        .procedure-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .procedure-table th {
+            text-align: left;
+            background: var(--bg-card);
+            padding: 12px;
+            color: var(--text-dim);
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-dim);
+        }
+
+        .procedure-table td {
+            padding: 12px;
+            border-bottom: 1px solid #1f1f23;
+            vertical-align: top;
+            color: #d1d1d6;
+        }
+
+        .eq-card {
+            padding: 16px 20px;
+            background: #0c0c0e;
+            border: 1px solid var(--border-dim);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .eq-card:hover {
+            background: #161619;
+            border-color: #3f3f46;
+        }
+
+        .status-pill {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .tech-label {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 11px;
+            color: var(--accent-blue);
+        }
+
+        .lab-hero-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-dim);
+            padding: 32px;
+            border-radius: 12px;
+            transition: all 0.3s;
+        }
+
+        .lab-hero-card:hover {
+            border-color: var(--accent-blue);
+            background: #1c1c20;
+        }
+    </style>
+</head>
+<body x-data="labApp()" class="flex overflow-x-hidden">
+    <!-- Overlay for mobile -->
+    <div x-show="sidebarOpen" 
+         @click="sidebarOpen = false" 
+         class="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
+         x-transition:enter="transition ease-out duration-300"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-200"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0">
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar flex flex-col" :class="sidebarOpen ? '' : 'mobile-hidden'">
+        <div class="flex flex-col h-full">
+            <!-- Brand -->
+            <div class="p-8 pb-10 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-3">
+                    <div class="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M12 2v20M2 12h20M12 2l10 10-10 10L2 12 12 2z"/></svg>
+                    </div>
+                    <h1 class="font-extrabold text-lg tracking-tight text-white">LabTrack <span class="text-blue-500">Pro</span></h1>
+                </div>
+                <button @click="sidebarOpen = false" class="md:hidden text-zinc-500 hover:text-white">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+
+            <!-- Navigation -->
+            <nav class="flex-1 space-y-1">
+                <button @click="view = 'home'; selectedLab = null" class="nav-item" :class="view === 'home' ? 'active' : ''">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span>Dashboard</span>
+                </button>
+                
+                <div class="px-6 pt-6 pb-2">
+                    <span class="text-[10px] uppercase tracking-widest font-bold text-zinc-600">Laboratórios</span>
+                </div>
+
+                <template x-for="lab in labs" :key="lab.id">
+                    <button @click="openLab(lab)" class="nav-item" :class="selectedLab?.id === lab.id && view !== 'home' ? 'active' : ''">
+                        <i :data-lucide="lab.icon" class="w-4 h-4"></i>
+                        <span x-text="lab.name"></span>
+                    </button>
+                </template>
+            </nav>
+
+            <div class="p-6">
+                <div class="bg-zinc-900 rounded-lg p-3 flex items-center gap-3 border border-zinc-800">
+                    <div class="h-6 w-6 rounded bg-blue-500/20 flex items-center justify-center">
+                        <i data-lucide="shield" class="w-3 h-3 text-blue-500"></i>
+                    </div>
+                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-tight">Ambiente Seguro</span>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="main-content flex-1 min-h-screen">
+        
+        <header class="main-header justify-between sticky top-0 z-20">
+            <div class="flex items-center gap-4 text-[13px]">
+                <button @click="sidebarOpen = true" class="md:hidden text-zinc-400 hover:text-white">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <div class="flex items-center gap-2">
+                    <span class="text-zinc-500 hidden sm:inline">Lab</span>
+                    <span class="text-blue-500 font-semibold" x-text="view === 'home' ? '/ Visão Geral' : '/ ' + selectedLab?.name"></span>
+                </div>
+            </div>
+            <div class="text-[11px] font-mono text-zinc-600 uppercase tracking-widest hidden sm:block">Procedimentos Pop v2.0</div>
+        </header>
+
+        <div class="p-4 sm:p-8">
+            <!-- Home -->
+            <div x-show="view === 'home'" class="space-y-8">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="meta-box text-center md:text-left">
+                        <div class="meta-label">Total Documentos</div>
+                        <div class="text-2xl font-bold text-white tracking-tight" x-text="totalItems"></div>
+                    </div>
+                    <div class="meta-box text-center md:text-left">
+                        <div class="meta-label">Última Revisão</div>
+                        <div class="text-2xl font-bold text-white tracking-tight">2026</div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <template x-for="lab in labs" :key="lab.id">
+                        <div @click="openLab(lab)" class="lab-hero-card cursor-pointer group">
+                            <div class="h-10 w-10 rounded border border-blue-500/20 bg-blue-500/5 flex items-center justify-center mb-6 group-hover:bg-blue-500 group-hover:border-blue-500 transition-all duration-300">
+                                <i :data-lucide="lab.icon" class="w-5 h-5 text-blue-500 group-hover:text-white"></i>
+                            </div>
+                            <h4 class="font-bold text-sm text-white mb-1" x-text="lab.name"></h4>
+                            <p class="text-zinc-500 text-[11px] leading-tight" x-text="lab.description"></p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Lab List -->
+            <div x-show="view === 'lab'" class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                <template x-if="selectedLab?.id === 'multididatico'">
+                    <div id="equipamentos-multididatico" class="col-span-full mb-6">
+                        <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Equipamentos Disponíveis</h3>
+                        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <template x-for="(item, index) in selectedLab?.items" :key="index">
+                                <div @click="openItem(item, selectedLab)" class="eq-card group">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
+                                        <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
+                                    </div>
+                                    <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
+                                        <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
+                                        <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                <template x-if="selectedLab?.id !== 'multididatico'">
+                    <template x-for="(item, index) in selectedLab?.items" :key="index">
+                        <div @click="openItem(item, selectedLab)" class="eq-card group">
+                            <div class="flex justify-between items-start mb-4">
+                                <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
+                                <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
+                            </div>
+                            <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
+                            <div class="flex items-center gap-2">
+                                <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
+                                <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
+                                <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
+                            </div>
+                        </div>
+                    </template>
+                </template>
+            </div>
+
+            <!-- Detail -->
+            <div x-show="view === 'detail'" class="max-w-5xl mx-auto pb-20">
+                <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-6">
+                    <div>
+                        <button @click="view = 'lab'" class="text-[11px] uppercase font-bold text-zinc-500 hover:text-white flex items-center gap-2 mb-6 group">
+                            <i data-lucide="arrow-left" class="w-3 h-3 group-hover:-translate-x-1 transition-transform"></i> Voltar à Lista
+                        </button>
+                        <h2 class="text-3xl font-extrabold text-white tracking-tighter" x-text="selectedItem?.name"></h2>
+                        <div class="tech-label mt-2" x-text="'ID TÉCNICO: ' + (selectedItem?.model || 'PROTOCOLO-GERAL')"></div>
+                    </div>
+                    <div class="flex items-center gap-4">
+                        <div class="status-pill scale-110">Operacional</div>
+                    </div>
+                </div>
+
+                <!-- Protocol Section -->
+                <div class="mb-12">
+                    <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Protocolo Operacional</h3>
+                    <div class="procedure-card bg-zinc-900/50 border-zinc-800 mb-8">
+                        <div class="text-[13px] text-zinc-400 leading-relaxed whitespace-pre-line" x-text="selectedItem?.procedure"></div>
+                    </div>
+
+                    <template x-if="selectedItem?.tables?.length">
+                        <div class="space-y-6">
+                            <template x-for="table in selectedItem.tables">
+                                <div class="border border-zinc-800 rounded-xl overflow-hidden">
+                                    <div class="px-4 py-2 bg-zinc-900/80 border-b border-zinc-800">
+                                        <span class="text-[10px] font-bold uppercase text-zinc-400" x-text="table.title"></span>
+                                    </div>
+                                    <div class="overflow-x-auto">
+                                        <table class="procedure-table">
+                                            <thead>
+                                                <tr>
+                                                    <template x-for="header in table.headers">
+                                                        <th x-text="header"></th>
+                                                    </template>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <template x-for="row in table.rows">
+                                                    <tr>
+                                                        <template x-for="cell in row">
+                                                            <td x-text="cell"></td>
+                                                        </template>
+                                                    </tr>
+                                                </template>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Document Section -->
+                <div class="mb-12">
+                    <div class="flex items-center justify-between mb-6">
+                        <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Documento Técnico</h3>
+                        <template x-if="selectedItem?.pdfUrl && selectedItem?.pdfUrl !== '#'">
+                            <a :href="selectedItem.pdfUrl" 
+                               download 
+                               class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
+                                <i data-lucide="download" class="w-4 h-4"></i>
+                                Baixar PDF
+                            </a>
+                        </template>
+                    </div>
+                    <template x-if="selectedItem?.pdfUrl && selectedItem?.pdfUrl !== '#'">
+                        <div class="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden" style="height: 750px;">
+                            <iframe :src="selectedItem.pdfUrl + '#view=FitH'" 
+                                    type="application/pdf" 
+                                    width="100%" 
+                                    height="100%" 
+                                    class="w-full h-full"
+                                    frameborder="0">
+                                <div class="p-8 text-center">
+                                    <p class="text-zinc-400 mb-4">Seu navegador não suporta visualização de PDF inline.</p>
+                                    <a :href="selectedItem.pdfUrl" 
+                                       download 
+                                       class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-colors">
+                                        <i data-lucide="download" class="w-5 h-5"></i>
+                                        Clique aqui para baixar o PDF
+                                    </a>
+                                </div>
+                            </iframe>
+                        </div>
+                    </template>
+                    <template x-if="!selectedItem?.pdfUrl || selectedItem?.pdfUrl === '#'">
+                        <div class="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl p-16 text-center">
+                            <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i data-lucide="file-question" class="w-8 h-8 text-zinc-600"></i>
+                            </div>
+                            <h3 class="text-zinc-300 font-bold mb-2">Visualização Indisponível</h3>
+                            <p class="text-[12px] text-zinc-500 max-w-sm mx-auto">
+                                O arquivo PDF para este Procedimento Operacional Padrão (POP) ainda não foi indexado ou o link está quebrado.
+                            </p>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function labApp() {
+            return {
+                sidebarOpen: window.innerWidth > 768,
+                view: 'home',
+                selectedLab: null,
+                selectedItem: null,
+                labs: [],
+                protocols: [],
+
+
+                
+                get totalItems() {
+                    return this.labs.reduce((acc, lab) => acc + lab.items.length, 0);
+                },
+
+                get pageTitle() {
+                    if (this.view === 'home') return 'Visão Geral';
+                    if (this.view === 'lab') return this.selectedLab.name;
+                    if (this.view === 'detail') return 'Detalhes do Equipamento';
+                    return '';
+                },
+
+                get pageDescription() {
+                    if (this.view === 'home') return 'Gerenciamento eletrônico de protocolos e inventário laboratorial.';
+                    if (this.view === 'lab') return this.selectedLab.description;
+                    if (this.view === 'detail') return 'Protocolo operacional padrão detalhado.';
+                    return '';
+                },
+
+                init() {
+                    this.labs = [
+                        {
+                            id: 'analises_clinicas',
+                            name: 'Análises Clínicas',
+                            icon: 'test-tube-2',
+                            description: 'Diagnósticos biológicos, hematológicos e ensaios químicos de rotina.',
+                            items: [
+                                { name: 'Balança Semi-Analítica', brand: 'BEL Engineering', model: 'MARK M 4202', supplier: 'BEL ENGINEERING - Piracicaba/SP', emission: '08/07/2025', revision: '08/07/2027', location: 'Lab. Análises Clínicas', icon: 'scale', pdfUrl: 'POPs_Analises_Clinicas/POP_BALANCA_SEMI_ANALITICA.pdf', procedure: '1. Instale em superfície estável, livre de correntes de ar.\n2. Conecte à rede e aguarde 30 min para estabilização.\n3. Calibre o equipamento pressionando CAL com prato vazio.\n4. Utilize a função TARA para zerar recipientes.\n5. Realize a pesagem e leitura do valor líquido.\n6. Limpeza: use pincel e pano úmido com detergente neutro.' },
+                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Incubação', icon: 'box', pdfUrl: 'POPs_Analises_Clinicas/POP_ESTUFA_DE_CULTURA_BACTERIOLOGICA.pdf', procedure: '1. Verifique a tensão da rede antes de ligar.\n2. Ajuste o Set Point desejado no controlador.\n3. Ajuste o termostato de segurança 20% acima do Set Point.\n4. Distribua amostras mantendo a circulação de ar.\n5. Higienize com flanela úmida e sanitizar com álcool 70%.' },
+                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Preparo', icon: 'rotate-cw', pdfUrl: 'POPs_Analises_Clinicas/POP_AGITADOR_MAGNETICO_COM_AQUECIMENTO.pdf', procedure: '1. Coloque sobre superfície plana estável.\n2. Ligue e ajuste agitação no sentido horário.\n3. Ajuste temperatura conforme processo.\n4. Use volumes reduzidos para líquidos viscosos.\n5. Evite entrada de líquidos no interior do motor.' },
+                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Biotecnologia', icon: 'flask-conical', pdfUrl: 'POPs_Analises_Clinicas/POP_INCUBADORA_SHAKER.pdf', procedure: '1. Verifique o limite de peso permitido garras.\n2. Organize frascos de forma equilibrada.\n3. Programe RPM e temperatura no painel digital.\n4. Aguarde resfriamento total antes de abrir.\n5. Limpeza com pano úmido e sabão neutro fora da rede.' },
+                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Águas', icon: 'droplet', pdfUrl: 'POPs_Analises_Clinicas/POP_DESTILADOR_DE_AGUA.pdf', procedure: '1. Verifique nivelamento a 90° rigído.\n2. Abra fluxo de água para preencher caldeira.\n3. Acione ON/OFF; aguarde 15-20 min.\n4. Mantenha água ligada 2 min após desligamento.\n5. Desincruste mensalmente com vinagre ou ácido.' },
+                                { name: 'Banho Maria', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Aquecimento', icon: 'thermometer', pdfUrl: 'POPs_Analises_Clinicas/POP_BANHO_MARIA.pdf', procedure: '1. Água deve cobrir totalmente a resistência.\n2. Ajuste temp. via teclas +/- e salve no "F".\n3. Timer operado pelo botão "T" (3s).\n4. Use água destilada para evitar minerais.\n5. Descarte água pela válvula traseira após uso.' },
+                                { name: 'Centrífuga Manual', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'POPs_Analises_Clinicas/POP_CENTRIFUGA_MANUAL.pdf', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
+                                { name: 'Centrífuga Clínica Digital', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'POPs_Analises_Clinicas/POP_CENTRIFUGA_CLINICA_DIGITAL.pdf', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
+                                { name: 'Espectrofotômetro Digital', brand: 'NOVA', model: 'NI 2000', supplier: 'Nova Instruments', emission: '08/07/2025', revision: '08/07/2027', location: 'Bioquímica', icon: 'waves', pdfUrl: 'POPs_Analises_Clinicas/POP_ESPECTROFOTOMETRO_DIGITAL.pdf', procedure: '1. Estabilize o sistema por 20 minutos.\n2. Sintonize Lambda (λ) via teclas GOTO.\n3. Calibre o ZERO com cubeta de branco.\n4. Execute leitura de amostras via ENTER.\n5. Cuvetes devem ser limpas imediatamente após uso.' },
+                                { name: 'Forno de Microondas', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'POPs_Analises_Clinicas/POP_FORNO_DE_MICROONDAS.pdf', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
+                                { name: 'Autoclave Vertical', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'POPs_Analises_Clinicas/POP_AUTOCLAVE_VERTICAL.pdf', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
+                                { name: 'Ultrapurificador de Água', brand: 'GEHAKA', model: 'MS 3000', supplier: 'Gehaka LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Aguas Especiais', icon: 'filter', pdfUrl: 'POPs_Analises_Clinicas/POP_ULTRAPURIFICADOR_DE_AGUA.pdf', procedure: '1. Verifique nível de tanque (ícone gota).\n2. Registro de entrada deve estar sempre aberto.\n3. Realize desinfecção sistêmica anual (AP600).\n4. Troque filtros quando indicado no display.\n5. Imprima relatórios de qualidade periodicamente.' },
+                                { name: 'Ultrafreezer', brand: 'THERMOTEMP', model: 'Vertical', supplier: 'BS Tec Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Criogenia', icon: 'snowflake', pdfUrl: 'POPs_Analises_Clinicas/POP_ULTRAFREEZER.pdf', procedure: '1. Mantenha Set Point entre -40°C e -86°C.\n2. Organize amostras em racks metálicos.\n3. Não obstrua saídas de ventilação traseiras.\n4. Alertas sonoros para porta aberta ou falha.\n5. Limpeza de gelo excessivo a cada 6 meses.' },
+                                { name: 'Capela de Fluxo Laminar (S27)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027', location: 'Microbiologia', icon: 'wind', pdfUrl: 'POPs_Analises_Clinicas/POP_CAPELA_DE_FLUXO_LAMINAR_S27.pdf', procedure: '1. UV ativa por 15 min; exaustor 5 min antes.\n2. Sanitização com álcool 70% sob o fluxo.\n3. Mantenha materiais a 10cm do vidro frontal.\n4. Não use bico de bunsen no interior.\n5. Filtro HEPA deve ser trocado por técnico.' },
+                                { name: 'Seladora a Vácuo', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Insumos', icon: 'shrink', pdfUrl: 'POPs_Analises_Clinicas/POP_SELADORA_A_VACUO.pdf', procedure: '1. Alinhe saco plástico na barra de sucção.\n2. Inicie ciclo e aguarde selagem térmica.\n3. Não use com líquidos (salvo modo específico).\n4. Verifique desgaste da resistência mensalmente.\n5. Limpeza com pano levemente úmido.' },
+                                { name: 'Estufa de Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027', location: 'Lavagem/Secagem', icon: 'sun', pdfUrl: 'POPs_Analises_Clinicas/POP_ESTUFA_DE_SECAGEM.pdf', procedure: '1. Pré-aquecimento obrigatório antes da carga.\n2. Distribua vidrarias sem tocar resistências.\n3. Mantenha respiros de teto levemente abertos.\n4. Desligue e espere Temp < 40°C para descarga.\n5. Verifique cabos e aterramento periodicamente.' },
+                                { name: 'Cabine de Fluxo Laminar (NF4703)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027', location: 'Microbiologia', icon: 'wind', pdfUrl: 'POPs_Analises_Clinicas/POP_CABINE_DE_FLUXO_LAMINAR_NF4703.pdf', procedure: '1. UV ativa por 15 min; exaustor 5 min antes.\n2. Sanitização com álcool 70% sob o fluxo.\n3. Mantenha materiais a 10cm do vidro frontal.\n4. Não use bico de bunsen no interior.\n5. Filtro HEPA deve ser trocado por técnico.' }
+                            ]
+                        },
+                        {
+                            id: 'microscopia',
+                            name: 'Microscopia',
+                            icon: 'search',
+                            description: 'Setor de análise morfológica e diagnóstico citopatológico.',
+                            items: [
+                                { name: 'Microscópio Óptico', brand: 'BIOFOCUS', model: 'Infinita', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada Principal', icon: 'microscope', pdfUrl: 'POPs_Microscopia/POP_MICROSCOPIO_OPTICO.pdf', procedure: '1. Inicie foco na 4X e ajuste via macrométrico.\n2. 10X/40X/100X requerem apenas ajuste micrométrico.\n3. Gota única de óleo de imersão para a 100X.\n4. Limpe objetivas com papel óptico após uso.\n5. Cubra com capa protetora antiestática.' },
+                                { name: 'Microscópio Estereoscópio', brand: 'BIOFOCUS', model: 'Estereoscópio', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada Principal', icon: 'microscope', pdfUrl: 'POPs_Microscopia/POP_MICROSCOPIO_ESTEREOSCOPIO.pdf', procedure: '1. Ajuste a altura da plataforma para foco inicial.\n2. Use iluminação superior/inferior conforme necessidade.\n3. Ajuste zoom e foco para visualização tridimensional.\n4. Mantenha lentes limpas com tecido óptico.\n5. Desligue após uso e cubra com capa protetora.' },
+                                { name: 'Contador de Células Sanguíneas', brand: 'KACIL', model: 'CCS 02', supplier: 'Kacil Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'calculator', pdfUrl: 'POPs_Microscopia/POP_CONTADOR_DE_CELULAS_SANGUINEAS.pdf', procedure: '1. Selecione função Leucocitário ou Hemácias.\n2. Contagem manual via teclado de 10 teclas.\n3. Bloqueio automático ao atingir 100 células.\n4. Digite valor HB/HT para índices automáticos.\n5. Aspire solução de limpeza via sonda final dia.', tables:[{title:"Índices Automáticos", headers:["Parâmetro", "Significado"], rows:[["VCM", "Volume Coruscular Médio"], ["HCM", "Hemoglobina Corpuscular Média"], ["CHCM", "Conc. Hemoglobina Corp. Média"]]}] }
+                            ]
+                        },
+                        {
+                            id: 'multididatico',
+                            name: 'Multididático',
+                            icon: 'layers',
+                            description: 'Plataforma para bioprospecção, técnicas moleculares e ensino.',
+                            items: [
+                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Preparo', icon: 'rotate-cw', pdfUrl: 'multididatico_POP/AGITADOR_MAGNETICO_COM_AQUECIMENTO.pdf', procedure: '1. Coloque sobre superfície plana estável.\n2. Ligue e ajuste agitação no sentido horário.\n3. Ajuste temperatura conforme processo.\n4. Use volumes reduzidos para líquidos viscosos.\n5. Evite entrada de líquidos no interior do motor.' },
+                                { name: 'Balança Analítica', brand: 'SHIMADZU', model: 'ATX-R', supplier: 'Shimadzu Brasil', emission: '08/07/2025', revision: '08/07/2027', location: 'Pesagem Especial', icon: 'scale-3d', pdfUrl: 'multididatico_POP/BALANLCA_ANALITICA.pdf', procedure: '1. Ligue 30 min antes para equilíbrio térmico.\n2. Mantenha capela fechada para evitar ventos.\n3. Utilize pinças para manipular pesos padrão.\n4. Calibração interna via tecla CAL.\n5. Limpeza com pincel de pelos macios.' },
+                                { name: 'Banho Ultrassônico Conjugado', brand: 'SOLID STEEL', model: 'SSBuc 10L', supplier: 'Solisteel', emission: '08/07/2025', revision: '08/07/2027', location: 'Limpeza', icon: 'droplets', pdfUrl: 'multididatico_POP/BANHO_ULTRASSONICO_CONJUGADO.pdf', procedure: '1. Nível de água a 3cm da borda da cuba.\n2. Use detergente desincrustante específico.\n3. Ajuste tempo (tecla ADJUST) e acione START.\n4. Não encoste peças no fundo (use o cesto).\n5. Drene a água pelo registro lateral após ciclo.' },
+                                { name: 'Banho Ultratermostatizado', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Aquecimento', icon: 'thermometer', pdfUrl: 'multididatico_POP/BANHO_ULTERMOSTATIZADO.pdf', procedure: '1. Água deve cobrir totalmente a resistência.\n2. Ajuste temp. via teclas +/- e salve no "F".\n3. Timer operado pelo botão "T" (3s).\n4. Use água destilada para evitar minerais.\n5. Descarte água pela válvula traseira após uso.' },
+                                { name: 'Centrífuga', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'multididatico_POP/CENTRIFUGA.pdf', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
+                                { name: 'Câmera Escura UV', brand: 'CIENLAB', model: 'CE-850-L', supplier: 'Cienlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada UV', icon: 'scan', pdfUrl: 'multididatico_POP/CAMERA_ESCURA_UV.pdf', procedure: '1. Selecione comprimento de onda (254nm/365nm).\n2. Feche porta de correr para evitar fuga UV.\n3. Posicione placa/gel centralizado no contraste.\n4. Use óculos de proteção UV certificados.\n5. Não ultrapasse 5 min de exposição contínua.' },
+                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Águas', icon: 'droplet', pdfUrl: 'multididatico_POP/DESTILADOR_DE_AGUA.pdf', procedure: '1. Verifique nivelamento a 90° rigído.\n2. Abra fluxo de água para preencher caldeira.\n3. Acione ON/OFF; aguarde 15-20 min.\n4. Mantenha água ligada 2 min após desligamento.\n5. Desincruste mensalmente com vinagre ou ácido.' },
+                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Incubação', icon: 'box', pdfUrl: 'multididatico_POP/ESTUFA_DE_CULTURA_BACTERIOLOGICA.pdf', procedure: '1. Verifique a tensão da rede antes de ligar.\n2. Ajuste o Set Point desejado no controlador.\n3. Ajuste o termostato de segurança 20% acima do Set Point.\n4. Distribua amostras mantendo a circulação de ar.\n5. Higienize com flanela úmida e sanitizar com álcool 70%.' },
+                                { name: 'Estufa Digital Esterilização e Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027', location: 'Lavagem/Secagem', icon: 'sun', pdfUrl: 'multididatico_POP/ESTUFA_DIGITAL_ESTERILIZACAO_.pdf', procedure: '1. Pré-aquecimento obrigatório antes da carga.\n2. Distribua vidrarias sem tocar resistências.\n3. Mantenha respiros de teto levemente abertos.\n4. Desligue e espere Temp < 40°C para descarga.\n5. Verifique cabos e aterramento periodicamente.' },
+                                { name: 'Forno Mufla', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'multididatico_POP/FORNO_MUFLA.pdf', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
+                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Biotecnologia', icon: 'flask-conical', pdfUrl: 'multididatico_POP/INCUBADORA_SHAKER.pdf', procedure: '1. Verifique o limite de peso permitido garras.\n2. Organize frascos de forma equilibrada.\n3. Programe RPM e temperatura no painel digital.\n4. Aguarde resfriamento total antes de abrir.\n5. Limpeza com pano úmido e sabão neutro fora da rede.' },
+                                { name: 'Manta Aquecedora', brand: 'FAITHFUL', model: '125 mL', supplier: 'Faithful Inst.', emission: '23/02/2026', revision: '--', location: 'Química', icon: 'flame', pdfUrl: 'multididatico_POP/MANTA_AQUECEDORA.pdf', procedure: '1. Encaixe balão de 125mL no ninho térmico.\n2. Gire potenciômetro para início do aquecimento.\n3. Monitorar via sensor de temperatura líquido.\n4. Desligue se observar fumaça ou odores.\n5. Deixe esfriar completamente antes de mover.' },
+                                { name: 'Micrótomo', brand: 'LUPETEC', model: 'MRP 2015', supplier: 'Lupetec', emission: '08/07/2025', revision: '08/07/2027', location: 'Histotecnologia', icon: 'scissors', pdfUrl: 'multididatico_POP/MICROTOMO.pdf', procedure: '1. Bloqueie o volante na posição 13h.\n2. Insira cassete e ajuste angulação navalha.\n3. Selecione espessura em mícrons (μm).\n4. Acione volante no sentido horário constante.\n5. Limpe resíduos de parafina com pincel seco.' },
+                                { name: 'Seladora', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Insumos', icon: 'shrink', pdfUrl: 'multididatico_POP/SELADORA.pdf', procedure: '1. Alinhe saco plástico na barra de sucção.\n2. Inicie ciclo e aguarde selagem térmica.\n3. Não use com líquidos (salvo modo específico).\n4. Verifique desgaste da resistência mensalmente.\n5. Limpeza com pano levemente úmido.' },
+                                { name: 'Viscosímetro', brand: 'MARTE', model: 'MVD-20', supplier: 'Marte Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Bioprospecção', icon: 'droplets', pdfUrl: 'multididatico_POP/VISCOSIMETRO.pdf', procedure: '1. Imirja spindle até a marca de referência.\n2. Ajuste velocidade RPM via painel digital.\n3. Ligue motor e aguarde estabilização (20-30s).\n4. Pressione trava para realizar leitura viscosidade.\n5. Lave o rotor imediatamente com solvente.' }
+                            ]
+                        },
+                        {
+                            id: 'lavagem',
+                            name: 'Biossegurança',
+                            icon: 'shield-check',
+                            description: 'Padrões de higiene e segurança física nos laboratórios.',
+                            items: [
+                                { name: 'Higienização das Mãos', brand: 'IFTO', model: 'POP.IFTO 001', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--', location: 'Geral', icon: 'hand', pdfUrl: 'POPs_Lavagem/POP_HIGIENIZACAO_DAS_MAOS.pdf', procedure: '1. Água e sabão para mãos visivelmente sujas.\n2. Fricção de palmas, pregas e unhas (60s).\n3. Álcool 70% quando visualmente limpas (30s).\n4. Seque com papel descartável de alta absorção.\n5. Não use adornos (anéis/relógios) no lab.', tables:[{title:"Resumo de Tempo", headers:["Método", "Duração"], rows:[["Lavação", "40-60 Segundos"], ["Antissepsia", "20-30 Segundos"]]}] },
+                                { name: 'Limpeza de Bancada', brand: 'IFTO', model: 'POP.IFTO 003', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--', location: 'Geral', icon: 'broom', pdfUrl: 'POPs_Lavagem/POP_LIMPEZA_DE_BANCADA.pdf', procedure: '1. Remova todos os materiais da bancada.\n2. Aplique desinfetante adequado (álcool 70% ou hipoclorito).\n3. Esfregue com pano limpo em movimentos circulares.\n4. Deixe agir por 5-10 minutos.\n5. Enxágue com água destilada e seque.', tables:[{title:"Desinfetantes Recomendados", headers:["Produto", "Concentração"], rows:[["Álcool 70%", "70%"], ["Hipoclorito de Sódio", "0.5%"]]}] },
+                                { name: 'Lavagem de Vidrarias', brand: 'IFTO', model: 'POP.IFTO 002', supplier: 'S. Lavagem', emission: '23/02/2026', revision: '--', location: 'DML', icon: 'glass-water', pdfUrl: 'POPs_Lavagem/POP_LAVAGEM_DE_VIDRARIAS.pdf', procedure: '1. Pré-limpeza mecânica com esponja suave.\n2. Imersão em detergente tensoativo indicado.\n3. Enxágue exaustivo em água corrente.\n4. Banho final com água destilada/deionizada.\n5. Secagem 60°C para vidraria comum.', tables:[{title:"Etapas do Fluxo", headers:["Fase", "Ação", "Material"], rows:[["I", "Descarte", "Resíduos"], ["II", "Ação Química", "Detergente"], ["III", "Acabamento", "Água Destilada"], ["IV", "Descontaminação", "Estufa 60°C"]]}] }
+                            ]
+                        }
+                    ];
+
+                    this.protocols = this.labs.find(l => l.id === 'lavagem').items;
+                    
+                    window.addEventListener('load', () => lucide.createIcons());
+                    this.$watch('view', () => this.$nextTick(() => lucide.createIcons()));
+                    this.$watch('detailTab', () => this.$nextTick(() => lucide.createIcons()));
+                    this.$watch('selectedLab', () => this.$nextTick(() => lucide.createIcons()));
+                },
+
+                openLab(lab) {
+                    this.selectedLab = lab;
+                    this.view = 'lab';
+                },
+
+                openItem(item, lab) {
+                    this.selectedItem = item;
+                    this.selectedLab = lab;
+                    this.detailTab = 'protocol';
+                    this.view = 'detail';
+                }
+            }
+        }
+    </script>
+</body>
+</html>
