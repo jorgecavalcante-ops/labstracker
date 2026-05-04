@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LabsTracker - IFTO Araguaína</title>
+    <title>LabTrack Pro - IFTO Araguaína</title>
     <script>
         // Emergency fix for "Cannot set property fetch of #<Window> which has only a getter"
         (function() {
@@ -579,7 +579,7 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
-      function labApp() {
+        function labApp() {
             return {
                 sidebarOpen: window.innerWidth > 768,
                 currentRoute: '/',
@@ -606,7 +606,7 @@
                             icon: 'test-tube-2',
                             description: 'Diagnósticos biológicos, hematológicos e ensaios químicos de rotina.',
                             items: [
-                                { name: 'Balança Semi-Analítica', brand: 'BEL Engineering', model: 'MARK M 4202', supplier: 'BEL ENGINEERING - Piracicaba/SP', emission: '08/07/2025', revision: '08/07/2027', location: 'Lab. Análises Clínicas', icon: 'scale', pdfUrl: 'https://zzfaaeyhnvckglflzaxc.supabase.co/storage/v1/object/public/labstracker%20pdf's/Analises%20clinicas/BALANCA_SEMI_ANALITICA.pdf', procedure: '1. Instale em superfície estável, livre de correntes de ar.\n2. Conecte à rede e aguarde 30 min para estabilização.\n3. Calibre o equipamento pressionando CAL com prato vazio.\n4. Utilize a função TARA para zerar recipientes.\n5. Realize a pesagem e leitura do valor líquido.\n6. Limpeza: use pincel e pano úmido com detergente neutro.' },
+                                { name: 'Balança Semi-Analítica', brand: 'BEL Engineering', model: 'MARK M 4202', supplier: 'BEL ENGINEERING - Piracicaba/SP', emission: '08/07/2025', revision: '08/07/2027', location: 'Lab. Análises Clínicas', icon: 'scale', pdfUrl: 'https://drive.google.com/file/d/1N_sdmkCcqhGXkb9UhcEawEK67srpifYV/view?usp=sharing', procedure: '1. Instale em superfície estável, livre de correntes de ar.\n2. Conecte à rede e aguarde 30 min para estabilização.\n3. Calibre o equipamento pressionando CAL com prato vazio.\n4. Utilize a função TARA para zerar recipientes.\n5. Realize a pesagem e leitura do valor líquido.\n6. Limpeza: use pincel e pano úmido com detergente neutro.' },
                                 { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Incubação', icon: 'box', pdfUrl: 'https://drive.google.com/file/d/1Z7l7KWztY5plAhyOh6FAUDIWpMhID9Gb/view?usp=drive_link', procedure: '1. Verifique a tensão da rede antes de ligar.\n2. Ajuste o Set Point desejado no controlador.\n3. Ajuste o termostato de segurança 20% acima do Set Point.\n4. Distribua amostras mantendo a circulação de ar.\n5. Higienize com flanela úmida e sanitizar com álcool 70%.' },
                                 { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Preparo', icon: 'rotate-cw', pdfUrl: 'https://drive.google.com/file/d/1RF0styaQr5s8Ecmnq_ANTPMbJ7na-YO5/view?usp=sharing', procedure: '1. Coloque sobre superfície plana estável.\n2. Ligue e ajuste agitação no sentido horário.\n3. Ajuste temperatura conforme processo.\n4. Use volumes reduzidos para líquidos viscosos.\n5. Evite entrada de líquidos no interior do motor.' },
                                 { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Biotecnologia', icon: 'flask-conical', pdfUrl: 'https://drive.google.com/file/d/1LbzBc-ZGYBqXv2onnAUSM-07EIhyeFcX/view?usp=sharing', procedure: '1. Verifique o limite de peso permitido garras.\n2. Organize frascos de forma equilibrada.\n3. Programe RPM e temperatura no painel digital.\n4. Aguarde resfriamento total antes de abrir.\n5. Limpeza com pano úmido e sabão neutro fora da rede.' },
