@@ -43,6 +43,7 @@
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.446.0/dist/umd/lucide.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
     <!-- PDF.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono&display=swap');
@@ -289,6 +290,26 @@
             background: #0c0c0e;
             padding: 20px;
         }
+        .pdf-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            color: var(--text-dim);
+            font-size: 14px;
+        }
+        .pdf-loading-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid var(--border-dim);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body x-data="labApp()" class="flex overflow-x-hidden">
@@ -376,7 +397,7 @@
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <template x-for="lab in labs" :key="lab.id">
                         <div @click="goToLab(lab)" class="lab-hero-card">
-                            <div class="h-10 w-10 rounded border border-blue-500/20 bg-blue-500/5 flex items-center justify-center mb-6 group-hover:bg-blue-500 group-hover:border-blue-500 transition-all duration-300">
+                            <div class="h-10 w-10 rounded border border-blue-500/20 bg-blue-500/5 flex items-center justify-center mb-6 group-hover:bg-blue-500 group-hover:border-blue-500 transition-all">
                                 <i :data-lucide="lab.icon" class="w-5 h-5 text-blue-500"></i>
                             </div>
                             <h4 class="font-bold text-sm text-white mb-1" x-text="lab.name"></h4>
@@ -415,17 +436,17 @@
                                 <div @click="goToItem(item, selectedLab, index)" class="eq-card">
                                     <div class="flex justify-between items-start mb-4">
                                         <span class="text-[10px] font-mono text-zinc-600 uppercase tracking-widest" x-text="'POP-' + String(index + 1).padStart(3, '0')"></span>
-                                                <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
-                                            </div>
-                                            <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
-                                            <div class="flex items-center gap-2">
-                                                <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
-                                                <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
-                                                <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
-                                            </div>
-                                        </div>
-                                    </template>
-                                </template>
+                                        <div class="status-pill !bg-transparent border border-emerald-500/20 !text-emerald-500">OK</div>
+                                    </div>
+                                    <h5 class="text-zinc-100 font-bold text-sm mb-1 line-clamp-1" x-text="item.name"></h5>
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-[11px] text-zinc-500" x-text="item.brand"></span>
+                                        <span x-show="item.model" class="w-1 h-1 bg-zinc-800 rounded-full"></span>
+                                        <span x-show="item.model" class="text-[11px] text-blue-400 font-mono" x-text="item.model"></span>
+                                    </div>
+                                </div>
+                            </template>
+                        </template>
                     </div>
                 </template>
             </div>
@@ -487,40 +508,30 @@
                         <div class="mb-12">
                             <div class="flex items-center justify-between mb-6">
                                 <h3 class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Documento Técnico</h3>
-                                <template x-if="getPdfStatus() === 'has-url'">
+                                <template x-if="getPdfStatus() !== 'no-file'">
                                     <div class="flex gap-2">
-                                        <a x-show="!isExternalUrl()" :href="selectedItem.pdfUrl" download 
+                                        <a :href="getDownloadLink()" download 
                                            class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
                                             <i data-lucide="download" class="w-4 h-4"></i>
                                             Baixar PDF
-                                        </a>
-                                        <a x-show="isExternalUrl()" :href="selectedItem.pdfUrl" target="_blank" 
-                                           class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors">
-                                            <i data-lucide="external-link" class="w-4 h-4"></i>
-                                            Abrir PDF
                                         </a>
                                     </div>
                                 </template>
                             </div>
 
-                            <!-- Google Drive ou URL Externa -->
-                            <template x-if="isExternalUrl()">
-                                <div class="pdf-viewer-container" style="height: 750px; display: flex; flex-direction: column;">
-                                    <div class="flex-1 flex flex-col">
-                                        <iframe 
-                                            :src="selectedItem.pdfUrl" 
-                                            width="100%" 
-                                            height="100%" 
-                                            class="w-full flex-1"
-                                            frameborder="0"
-                                            allow="fullscreen">
-                                        </iframe>
+                            <!-- Visualizador de PDF Local com PDF.js -->
+                            <template x-if="getPdfStatus() === 'loading'">
+                                <div class="pdf-viewer-container" style="height: 750px;">
+                                    <div class="pdf-viewer-body">
+                                        <div class="pdf-loading">
+                                            <span class="pdf-loading-spinner"></span>
+                                            Carregando PDF...
+                                        </div>
                                     </div>
                                 </div>
                             </template>
 
-                            <!-- Arquivo Local com PDF.js -->
-                            <template x-if="getPdfStatus() === 'local-file' && !isExternalUrl()">
+                            <template x-if="getPdfStatus() === 'ready'">
                                 <div class="pdf-viewer-container" style="height: 750px;">
                                     <div class="pdf-viewer-header">
                                         <div class="pdf-viewer-controls">
@@ -558,6 +569,17 @@
                                 </div>
                             </template>
 
+                            <!-- Erro ao carregar PDF -->
+                            <template x-if="getPdfStatus() === 'error'">
+                                <div class="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl p-16 text-center">
+                                    <div class="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                                        <i data-lucide="alert-circle" class="w-8 h-8 text-red-500"></i>
+                                    </div>
+                                    <h3 class="text-zinc-300 font-bold mb-2">Erro ao Carregar PDF</h3>
+                                    <p class="text-[12px] text-zinc-500 max-w-sm mx-auto" x-text="pdfError"></p>
+                                </div>
+                            </template>
+
                             <!-- Sem PDF disponível -->
                             <template x-if="getPdfStatus() === 'no-file'">
                                 <div class="bg-zinc-900/50 border border-dashed border-zinc-800 rounded-xl p-16 text-center">
@@ -566,7 +588,7 @@
                                     </div>
                                     <h3 class="text-zinc-300 font-bold mb-2">Visualização Indisponível</h3>
                                     <p class="text-[12px] text-zinc-500 max-w-sm mx-auto">
-                                        O arquivo PDF para este POP ainda não foi adicionado. Use Google Drive para melhor compatibilidade.
+                                        O arquivo PDF para este POP ainda não foi adicionado.
                                     </p>
                                 </div>
                             </template>
@@ -579,6 +601,56 @@
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         
+        // Mapeamento de items para arquivos PDF
+        const PDF_MAPPING = {
+            'analises_clinicas': {
+                'Balança Semi-Analítica': 'POPs_Analises_Clinicas/POP_BALANCA_SEMI_ANALITICA.pdf',
+                'Estufa de Cultura Bacteriológica': 'POPs_Analises_Clinicas/POP_ESTUFA_DE_CULTURA_BACTERIOLOGICA.pdf',
+                'Agitador Magnético com Aquecimento': 'POPs_Analises_Clinicas/POP_AGITADOR_MAGNETICO_COM_AQUECIMENTO.pdf',
+                'Incubadora Shaker': 'POPs_Analises_Clinicas/POP_INCUBADORA_SHAKER.pdf',
+                'Destilador de Água': 'POPs_Analises_Clinicas/POP_DESTILADOR_DE_AGUA.pdf',
+                'Banho Maria': 'POPs_Analises_Clinicas/POP_BANHO_MARIA.pdf',
+                'Centrífuga Manual': 'POPs_Analises_Clinicas/POP_CENTRIFUGA_MANUAL.pdf',
+                'Centrífuga Clínica Digital': 'POPs_Analises_Clinicas/POP_CENTRIFUGA_CLINICA_DIGITAL.pdf',
+                'Espectrofotômetro Digital': 'POPs_Analises_Clinicas/POP_ESPECTROFOTOMETRO_DIGITAL.pdf',
+                'Forno de Microondas': 'POPs_Analises_Clinicas/POP_FORNO_DE_MICROONDAS.pdf',
+                'Autoclave Vertical': 'POPs_Analises_Clinicas/POP_AUTOCLAVE_VERTICAL.pdf',
+                'Ultrapurificador de Água': 'POPs_Analises_Clinicas/POP_ULTRAPURIFICADOR_DE_AGUA.pdf',
+                'Ultrafreezer': 'POPs_Analises_Clinicas/POP_ULTRAFREEZER.pdf',
+                'Capela de Fluxo Laminar (S27)': 'POPs_Analises_Clinicas/POP_CAPELA_DE_FLUXO_LAMINAR_S27.pdf',
+                'Seladora a Vácuo': 'POPs_Analises_Clinicas/POP_SELADORA_A_VACUO.pdf',
+                'Estufa de Secagem': 'POPs_Analises_Clinicas/POP_ESTUFA_DE_SECAGEM.pdf',
+                'Cabine de Fluxo Laminar (NF4703)': 'POPs_Analises_Clinicas/POP_CABINE_DE_FLUXO_LAMINAR_NF4703.pdf',
+            },
+            'microscopia': {
+                'Microscópio Óptico': 'POPs_Microscopia/POP_MICROSCOPIO_OPTICO.pdf',
+                'Microscópio Estereoscópio': 'POPs_Microscopia/POP_MICROSCOPIO_ESTEREOSCOPIO.pdf',
+                'Contador de Células Sanguíneas': 'POPs_Microscopia/POP_CONTADOR_DE_CELULAS_SANGUINEAS.pdf',
+            },
+            'multididatico': {
+                'Agitador Magnético com Aquecimento': 'multididatico_POP/AGITADOR_MAGNETICO_COM_AQUECIMENTO.pdf',
+                'Balança Analítica': 'multididatico_POP/BALANLCA_ANALITICA.pdf',
+                'Banho Ultrassônico Conjugado': 'multididatico_POP/BANHO_ULTRASSONICO_CONJUGADO.pdf',
+                'Banho Ultratermostatizado': 'multididatico_POP/BANHO_ULTRATERMOSTATIZADO.pdf',
+                'Centrífuga': 'multididatico_POP/CENTRIFUGA.pdf',
+                'Câmera Escura UV': 'multididatico_POP/CAMERA_ESCURA_UV.pdf',
+                'Destilador de Água': 'multididatico_POP/DESTILADOR_DE_AGUA.pdf',
+                'Estufa de Cultura Bacteriológica': 'multididatico_POP/ESTUFA_DE_CULTURA_BACTERIOLOGICA.pdf',
+                'Estufa Digital Esterilização e Secagem': 'multididatico_POP/ESTUFA_DIGITAL_ESTERILIZACAO_.pdf',
+                'Forno Mufla': 'multididatico_POP/FORNO_MUFLA.pdf',
+                'Incubadora Shaker': 'multididatico_POP/INCUBADORA_SHAKER.pdf',
+                'Manta Aquecedora': 'multididatico_POP/MANTA_AQUECEDORA.pdf',
+                'Micrótomo': 'multididatico_POP/MICROTOMO.pdf',
+                'Seladora': 'multididatico_POP/SELADORA.pdf',
+                'Viscosímetro': 'multididatico_POP/VISCOSIMETRO.pdf',
+            },
+            'lavagem': {
+                'Higienização das Mãos': 'POPs_Lavagem/POP_HIGIENIZACAO_DAS_MAOS.pdf',
+                'Limpeza de Bancada': 'POPs_Lavagem/POP_LIMPEZA_DE_BANCADA.pdf',
+                'Lavagem de Vidrarias': 'POPs_Lavagem/POP_LAVAGEM_DE_VIDRARIAS.pdf',
+            }
+        };
+
         function labApp() {
             return {
                 sidebarOpen: window.innerWidth > 768,
@@ -592,6 +664,9 @@
                 currentPdfPage: 1,
                 totalPdfPages: 0,
                 currentZoom: 100,
+                pdfStatus: 'no-file', // 'no-file', 'loading', 'ready', 'error'
+                pdfError: '',
+                pdfBlobUrl: null,
                 
                 get totalItems() {
                     return this.labs.reduce((acc, lab) => acc + lab.items.length, 0);
@@ -606,23 +681,23 @@
                             icon: 'test-tube-2',
                             description: 'Diagnósticos biológicos, hematológicos e ensaios químicos de rotina.',
                             items: [
-                                { name: 'Balança Semi-Analítica', brand: 'BEL Engineering', model: 'MARK M 4202', supplier: 'BEL ENGINEERING - Piracicaba/SP', emission: '08/07/2025', revision: '08/07/2027', location: 'Lab. Análises Clínicas', icon: 'scale', pdfUrl: 'https://zzfaaeyhnvckglflzaxc.supabase.co/storage/v1/object/public/labstracker%20pdf's/Analises%20clinicas/BALANCA_SEMI_ANALITICA.pdf', procedure: '1. Instale em superfície estável, livre de correntes de ar.\n2. Conecte à rede e aguarde 30 min para estabilização.\n3. Calibre o equipamento pressionando CAL com prato vazio.\n4. Utilize a função TARA para zerar recipientes.\n5. Realize a pesagem e leitura do valor líquido.\n6. Limpeza: use pincel e pano úmido com detergente neutro.' },
-                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Incubação', icon: 'box', pdfUrl: 'https://zzfaaeyhnvckglflzaxc.supabase.co/storage/v1/object/public/labstracker%20pdf's/Analises%20clinicas/POP_ESTUFA_DE_CULTURA_BACTERIOLOGICA.pdf', procedure: '1. Verifique a tensão da rede antes de ligar.\n2. Ajuste o Set Point desejado no controlador.\n3. Ajuste o termostato de segurança 20% acima do Set Point.\n4. Distribua amostras mantendo a circulação de ar.\n5. Higienize com flanela úmida e sanitizar com álcool 70%.' },
-                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Preparo', icon: 'rotate-cw', pdfUrl: 'https://zzfaaeyhnvckglflzaxc.supabase.co/storage/v1/object/public/labstracker%20pdf's/Analises%20clinicas/AGITADOR_MAGNETICO_COM_AQUECIMENTO_POP.pdf', procedure: '1. Coloque sobre superfície plana estável.\n2. Ligue e ajuste agitação no sentido horário.\n3. Ajuste temperatura conforme processo.\n4. Use volumes reduzidos para líquidos viscosos.\n5. Evite entrada de líquidos no interior do motor.' },
-                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Biotecnologia', icon: 'flask-conical', pdfUrl: 'https://drive.google.com/file/d/1LbzBc-ZGYBqXv2onnAUSM-07EIhyeFcX/view?usp=sharing', procedure: '1. Verifique o limite de peso permitido garras.\n2. Organize frascos de forma equilibrada.\n3. Programe RPM e temperatura no painel digital.\n4. Aguarde resfriamento total antes de abrir.\n5. Limpeza com pano úmido e sabão neutro fora da rede.' },
-                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Águas', icon: 'droplet', pdfUrl: 'https://drive.google.com/file/d/1xyV9Hl3jFHFIGXguoa0mYa5vbp4rM66L/view?usp=sharing', procedure: '1. Verifique nivelamento a 90° rigído.\n2. Abra fluxo de água para preencher caldeira.\n3. Acione ON/OFF; aguarde 15-20 min.\n4. Mantenha água ligada 2 min após desligamento.\n5. Desincruste mensalmente com vinagre ou ácido.' },
-                                { name: 'Banho Maria', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Aquecimento', icon: 'thermometer', pdfUrl: 'https://drive.google.com/file/d/1_1LwIrEkj0S7s0DavpgoVX770SmUGyWY/view?usp=sharing', procedure: '1. Água deve cobrir totalmente a resistência.\n2. Ajuste temp. via teclas +/- e salve no "F".\n3. Timer operado pelo botão "T" (3s).\n4. Use água destilada para evitar minerais.\n5. Descarte água pela válvula traseira após uso.' },
-                                { name: 'Centrífuga Manual', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'https://drive.google.com/file/d/1-tRFbahtdJw_KQcdW8Bm5vZ45bKKTbUH/view?usp=sharing', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
-                                { name: 'Centrífuga Clínica Digital', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'https://drive.google.com/file/d/1HDuEYUq_6sJGt4N5HdtL2azCVSj3qbbI/view?usp=sharing', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
-                                { name: 'Espectrofotômetro Digital', brand: 'NOVA', model: 'NI 2000', supplier: 'Nova Instruments', emission: '08/07/2025', revision: '08/07/2027', location: 'Bioquímica', icon: 'waves', pdfUrl: 'https://drive.google.com/file/d/1EQkAd11ovbhFiL9E4vZlxxn7afmUwcb2/view?usp=sharing', procedure: '1. Estabilize o sistema por 20 minutos.\n2. Sintonize Lambda (λ) via teclas GOTO.\n3. Calibre o ZERO com cubeta de branco.\n4. Execute leitura de amostras via ENTER.\n5. Cuvetes devem ser limpas imediatamente após uso.' },
-                                { name: 'Forno de Microondas', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'https://drive.google.com/file/d/115XwUEwsIINvb-yX-XPvRzyjji_MMsj-/view?usp=sharing', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
-                                { name: 'Autoclave Vertical', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'https://drive.google.com/file/d/11_ZVjmxQDQMUMypogctuAstawwd1Sl89/view?usp=sharing', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
-                                { name: 'Ultrapurificador de Água', brand: 'GEHAKA', model: 'MS 3000', supplier: 'Gehaka LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Aguas Especiais', icon: 'filter', pdfUrl: 'https://drive.google.com/file/d/1FcjtNlqsUYX8qC_5EL43KvXJPfS-tGoY/view?usp=sharing', procedure: '1. Verifique nível de tanque (ícone gota).\n2. Registro de entrada deve estar sempre aberto.\n3. Realize desinfecção sistêmica anual (AP600).\n4. Troque filtros quando indicado no display.\n5. Imprima relatórios de qualidade periodicamente.' },
-                                { name: 'Ultrafreezer', brand: 'THERMOTEMP', model: 'Vertical', supplier: 'BS Tec Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Criogenia', icon: 'snowflake', pdfUrl: 'https://drive.google.com/file/d/1aAqPEuin5SU8TEs3qE6cZSzpsZZEeZuT/view?usp=sharing', procedure: '1. Mantenha Set Point entre -40°C e -86°C.\n2. Organize amostras em racks metálicos.\n3. Não obstrua saídas de ventilação traseiras.\n4. Alertas sonoros para porta aberta ou falha.\n5. Limpeza de gelo excessivo a cada 6 meses.' },
-                                { name: 'Capela de Fluxo Laminar (S27)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027', location: 'Microbiologia', icon: 'wind', pdfUrl: 'https://drive.google.com/file/d/11V2pFn1YehZqeyjM3-GJ9amUdfxLhBjK/view?usp=sharing', procedure: '1. UV ativa por 15 min; exaustor 5 min antes.\n2. Sanitização com álcool 70% sob o fluxo.\n3. Mantenha materiais a 10cm do vidro frontal.\n4. Não use bico de bunsen no interior.\n5. Filtro HEPA deve ser trocado por técnico.' },
-                                { name: 'Seladora a Vácuo', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Insumos', icon: 'shrink', pdfUrl: 'https://drive.google.com/file/d/1Da2aneE3XXb9qTLCap7qFqUFTToed8XO/view?usp=drive_link', procedure: '1. Alinhe saco plástico na barra de sucção.\n2. Inicie ciclo e aguarde selagem térmica.\n3. Não use com líquidos (salvo modo específico).\n4. Verifique desgaste da resistência mensalmente.\n5. Limpeza com pano levemente úmido.' },
-                                { name: 'Estufa de Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027', location: 'Lavagem/Secagem', icon: 'sun', pdfUrl: 'https://drive.google.com/file/d/17QpUCZSrAHXP4OJOwbpeFuHMj8jfQyVv/view?usp=drive_link', procedure: '1. Pré-aquecimento obrigatório antes da carga.\n2. Distribua vidrarias sem tocar resistências.\n3. Mantenha respiros de teto levemente abertos.\n4. Desligue e espere Temp < 40°C para descarga.\n5. Verifique cabos e aterramento periodicamente.' },
-                                { name: 'Cabine de Fluxo Laminar (NF4703)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027', location: 'Microbiologia', icon: 'wind', pdfUrl: 'https://drive.google.com/file/d/1zdvIXp9p10XI1iRC_ik8m1jNR7Dec_qR/view?usp=drive_link', procedure: '1. UV ativa por 15 min; exaustor 5 min antes.\n2. Sanitização com álcool 70% sob o fluxo.\n3. Mantenha materiais a 10cm do vidro frontal.\n4. Não use bico de bunsen no interior.\n5. Filtro HEPA deve ser trocado por técnico.' }
+                                { name: 'Balança Semi-Analítica', brand: 'BEL Engineering', model: 'MARK M 4202', supplier: 'BEL ENGINEERING - Piracicaba/SP', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Banho Maria', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Centrífuga Manual', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Centrífuga Clínica Digital', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Espectrofotômetro Digital', brand: 'NOVA', model: 'NI 2000', supplier: 'Nova Instruments', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Forno de Microondas', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Autoclave Vertical', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Ultrapurificador de Água', brand: 'GEHAKA', model: 'MS 3000', supplier: 'Gehaka LTDA', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Ultrafreezer', brand: 'THERMOTEMP', model: 'Vertical', supplier: 'BS Tec Soluções', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Capela de Fluxo Laminar (S27)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Seladora a Vácuo', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Estufa de Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Cabine de Fluxo Laminar (NF4703)', brand: 'BSTEC', model: 'Classe II A2', supplier: 'BS TEC', emission: '08/07/2025', revision: '08/07/2027' },
                             ]
                         },
                         {
@@ -631,9 +706,9 @@
                             icon: 'search',
                             description: 'Setor de análise morfológica e diagnóstico citopatológico.',
                             items: [
-                                { name: 'Microscópio Óptico', brand: 'BIOFOCUS', model: 'Infinita', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada Principal', icon: 'microscope', pdfUrl: 'https://drive.google.com/file/d/1nHGZ9mVXWy-lU6n8my1JsygxnVCXWkij/view?usp=drive_link', procedure: '1. Inicie foco na 4X e ajuste via macrométrico.\n2. 10X/40X/100X requerem apenas ajuste micrométrico.\n3. Gota única de óleo de imersão para a 100X.\n4. Limpe objetivas com papel óptico após uso.\n5. Cubra com capa protetora antiestática.' },
-                                { name: 'Microscópio Estereoscópio', brand: 'BIOFOCUS', model: 'Estereoscópio', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada Principal', icon: 'microscope', pdfUrl: 'https://drive.google.com/file/d/1J0EoOAzEPAFNfPd6b2AXLF0QbmEBLjbd/view?usp=drive_link', procedure: '1. Ajuste a altura da plataforma para foco inicial.\n2. Use iluminação superior/inferior conforme necessidade.\n3. Ajuste zoom e foco para visualização tridimensional.\n4. Mantenha lentes limpas com tecido óptico.\n5. Desligue após uso e cubra com capa protetora.' },
-                                { name: 'Contador de Células Sanguíneas', brand: 'KACIL', model: 'CCS 02', supplier: 'Kacil Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'calculator', pdfUrl: 'https://drive.google.com/file/d/1ruyyNsdOcKi4VFktlT10_nlN5Ml9sGTR/view?usp=drive_link', procedure: '1. Selecione função Leucocitário ou Hemácias.\n2. Contagem manual via teclado de 10 teclas.\n3. Bloqueio automático ao atingir 100 células.\n4. Digite valor HB/HT para índices automáticos.\n5. Aspire solução de limpeza via sonda final dia.', tables:[{title:"Índices Automáticos", headers:["Parâmetro", "Significado"], rows:[["VCM", "Volume Coruscular Médio"], ["HCM", "Hemoglobina Corpuscular Média"], ["CHCM", "Conc. Hemoglobina Corp. Média"]]}] }
+                                { name: 'Microscópio Óptico', brand: 'BIOFOCUS', model: 'Infinita', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Microscópio Estereoscópio', brand: 'BIOFOCUS', model: 'Estereoscópio', supplier: 'Ionlab', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Contador de Células Sanguíneas', brand: 'KACIL', model: 'CCS 02', supplier: 'Kacil Indústria', emission: '08/07/2025', revision: '08/07/2027' },
                             ]
                         },
                         {
@@ -642,21 +717,21 @@
                             icon: 'layers',
                             description: 'Plataforma para bioprospecção, técnicas moleculares e ensino.',
                             items: [
-                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Preparo', icon: 'rotate-cw', pdfUrl: 'https://drive.google.com/file/d/1eyE_Ijo_6jRLdEJ2NWg0nLsSVTrMhT_f/view?usp=drive_link', procedure: '1. Coloque sobre superfície plana estável.\n2. Ligue e ajuste agitação no sentido horário.\n3. Ajuste temperatura conforme processo.\n4. Use volumes reduzidos para líquidos viscosos.\n5. Evite entrada de líquidos no interior do motor.' },
-                                { name: 'Balança Analítica', brand: 'SHIMADZU', model: 'ATX-R', supplier: 'Shimadzu Brasil', emission: '08/07/2025', revision: '08/07/2027', location: 'Pesagem Especial', icon: 'scale-3d', pdfUrl: 'https://drive.google.com/file/d/1VfQ06jrHxbCdJWCldTuaXHQVv2VqLr-n/view?usp=drive_link', procedure: '1. Ligue 30 min antes para equilíbrio térmico.\n2. Mantenha capela fechada para evitar ventos.\n3. Utilize pinças para manipular pesos padrão.\n4. Calibração interna via tecla CAL.\n5. Limpeza com pincel de pelos macios.' },
-                                { name: 'Banho Ultrassônico Conjugado', brand: 'SOLID STEEL', model: 'SSBuc 10L', supplier: 'Solisteel', emission: '08/07/2025', revision: '08/07/2027', location: 'Limpeza', icon: 'droplets', pdfUrl: 'https://drive.google.com/file/d/1pZESmsKiy9pwYugnTleYHLGmZeIB5Uhb/view?usp=drive_link', procedure: '1. Nível de água a 3cm da borda da cuba.\n2. Use detergente desincrustante específico.\n3. Ajuste tempo (tecla ADJUST) e acione START.\n4. Não encoste peças no fundo (use o cesto).\n5. Drene a água pelo registro lateral após ciclo.' },
-                                { name: 'Banho Ultratermostatizado', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Aquecimento', icon: 'thermometer', pdfUrl: 'https://drive.google.com/file/d/1PkUOYfMbVaNKf5NDrOdOqXuA7N_8rEXy/view?usp=drive_link', procedure: '1. Água deve cobrir totalmente a resistência.\n2. Ajuste temp. via teclas +/- e salve no "F".\n3. Timer operado pelo botão "T" (3s).\n4. Use água destilada para evitar minerais.\n5. Descarte água pela válvula traseira após uso.' },
-                                { name: 'Centrífuga', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Hematologia', icon: 'loader-pinwheel', pdfUrl: 'https://drive.google.com/file/d/1ltLRzTI2HRUrU2xkYYX_sNN1BIxhQHZK/view?usp=drive_link', procedure: '1. Carregue tubos em pares idênticos opostos.\n2. Feche a tampa firmemente (trava de segurança).\n3. Selecione RPM e tempo no painel.\n4. Aguarde parada total antes de desbloquear.\n5. Limpeza interna semanal com álcool 70%.' },
-                                { name: 'Câmera Escura UV', brand: 'CIENLAB', model: 'CE-850-L', supplier: 'Cienlab', emission: '08/07/2025', revision: '08/07/2027', location: 'Bancada UV', icon: 'scan', pdfUrl: 'https://drive.google.com/file/d/1UtKluECt9Pl1lx0yFp7F0y_weVP0ZNNa/view?usp=drive_link', procedure: '1. Selecione comprimento de onda (254nm/365nm).\n2. Feche porta de correr para evitar fuga UV.\n3. Posicione placa/gel centralizado no contraste.\n4. Use óculos de proteção UV certificados.\n5. Não ultrapasse 5 min de exposição contínua.' },
-                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Águas', icon: 'droplet', pdfUrl: 'https://drive.google.com/file/d/1dFJB5xOX2frgjXobbs5vr0PIgNFeM9Nx/view?usp=drive_link', procedure: '1. Verifique nivelamento a 90° rigído.\n2. Abra fluxo de água para preencher caldeira.\n3. Acione ON/OFF; aguarde 15-20 min.\n4. Mantenha água ligada 2 min após desligamento.\n5. Desincruste mensalmente com vinagre ou ácido.' },
-                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027', location: 'Incubação', icon: 'box', pdfUrl: 'https://drive.google.com/file/d/12DC-NhDdN-w9dh87rh3GbLbo9NvvNk_W/view?usp=drive_link', procedure: '1. Verifique a tensão da rede antes de ligar.\n2. Ajuste o Set Point desejado no controlador.\n3. Ajuste o termostato de segurança 20% acima do Set Point.\n4. Distribua amostras mantendo a circulação de ar.\n5. Higienize com flanela úmida e sanitizar com álcool 70%.' },
-                                { name: 'Estufa Digital Esterilização e Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027', location: 'Lavagem/Secagem', icon: 'sun', pdfUrl: 'https://drive.google.com/file/d/16wk_gmFFRwQuRfeqlCHMS_ksF1pm2LCE/view?usp=drive_link', procedure: '1. Pré-aquecimento obrigatório antes da carga.\n2. Distribua vidrarias sem tocar resistências.\n3. Mantenha respiros de teto levemente abertos.\n4. Desligue e espere Temp < 40°C para descarga.\n5. Verifique cabos e aterramento periodicamente.' },
-                                { name: 'Forno Mufla', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027', location: 'Esterilização', icon: 'database', pdfUrl: 'https://drive.google.com/file/d/1J8qoKnBKoKalsZYDR1-EcSnFj8kv-rf5/view?usp=drive_link', procedure: '1. Abasteça com água destilada.\n2. Feche manípulos cruzados por igual.\n3. Calor MÁX até purga de ar; mude para MED.\n4. Libere vapor; abra apenas com pressão zero.\n5. Limpeza diária da caldeira e guarnições.' },
-                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027', location: 'Biotecnologia', icon: 'flask-conical', pdfUrl: 'https://drive.google.com/file/d/1nH39wg-1S2EbQ0LnLkinxcFIRRXdSldH/view?usp=drive_link', procedure: '1. Verifique o limite de peso permitido garras.\n2. Organize frascos de forma equilibrada.\n3. Programe RPM e temperatura no painel digital.\n4. Aguarde resfriamento total antes de abrir.\n5. Limpeza com pano úmido e sabão neutro fora da rede.' },
-                                { name: 'Manta Aquecedora', brand: 'FAITHFUL', model: '125 mL', supplier: 'Faithful Inst.', emission: '23/02/2026', revision: '--', location: 'Química', icon: 'flame', pdfUrl: 'https://drive.google.com/file/d/1TDSuMqBCAZo8yAujy_-cZeNCcFQOqHw4/view?usp=drive_link', procedure: '1. Encaixe balão de 125mL no ninho térmico.\n2. Gire potenciômetro para início do aquecimento.\n3. Monitorar via sensor de temperatura líquido.\n4. Desligue se observar fumaça ou odores.\n5. Deixe esfriar completamente antes de mover.' },
-                                { name: 'Micrótomo', brand: 'LUPETEC', model: 'MRP 2015', supplier: 'Lupetec', emission: '08/07/2025', revision: '08/07/2027', location: 'Histotecnologia', icon: 'scissors', pdfUrl: '', procedure: '1. Bloqueie o volante na posição 13h.\n2. Insira cassete e ajuste angulação navalha.\n3. Selecione espessura em mícrons (μm).\n4. Acione volante no sentido horário constante.\n5. Limpe resíduos de parafina com pincel seco.' },
-                                { name: 'Seladora', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027', location: 'Setor de Insumos', icon: 'shrink', pdfUrl: 'https://drive.google.com/file/d/1iPVWiCE5mUyj8AR5NpbNiVLHCTYeDNoK/view?usp=drive_link', procedure: '1. Alinhe saco plástico na barra de sucção.\n2. Inicie ciclo e aguarde selagem térmica.\n3. Não use com líquidos (salvo modo específico).\n4. Verifique desgaste da resistência mensalmente.\n5. Limpeza com pano levemente úmido.' },
-                                { name: 'Viscosímetro', brand: 'MARTE', model: 'MVD-20', supplier: 'Marte Científica', emission: '08/07/2025', revision: '08/07/2027', location: 'Bioprospecção', icon: 'droplets', pdfUrl: 'https://drive.google.com/file/d/1mM50_Uw77ACIUZ12I71ZMs51WuWWri_t/view?usp=drive_link', procedure: '1. Imirja spindle até a marca de referência.\n2. Ajuste velocidade RPM via painel digital.\n3. Ligue motor e aguarde estabilização (20-30s).\n4. Pressione trava para realizar leitura viscosidade.\n5. Lave o rotor imediatamente com solvente.' }
+                                { name: 'Agitador Magnético com Aquecimento', brand: 'GLOBAL TRADE', model: 'GT-AMB 10L', supplier: 'E-LABCOMMERCE LTDA', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Balança Analítica', brand: 'SHIMADZU', model: 'ATX-R', supplier: 'Shimadzu Brasil', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Banho Ultrassônico Conjugado', brand: 'SOLID STEEL', model: 'SSBuc 10L', supplier: 'Solisteel', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Banho Ultratermostatizado', brand: 'SOLAB', model: 'SL-150/28', supplier: 'Solab Científica', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Centrífuga', brand: 'MEDMAX', model: 'PIN MAX 80-2B', supplier: 'MEDMAX Comércio', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Câmera Escura UV', brand: 'CIENLAB', model: 'CE-850-L', supplier: 'Cienlab', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Destilador de Água', brand: 'SOLID STEEL', model: 'SSDEST 10L/H', supplier: 'Solisteel Comércio', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Estufa de Cultura Bacteriológica', brand: 'SP Labor', model: 'SP-200', supplier: 'SP Labor LTDA', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Estufa Digital Esterilização e Secagem', brand: 'BIOPAR', model: 'S150ST', supplier: 'Biopar Equipamentos', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Forno Mufla', brand: 'PHOENIX', model: 'AV 100L', supplier: 'PHOENIX Indústria', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Incubadora Shaker', brand: 'LUCADEMA', model: 'LUCA-222', supplier: 'Lucadema Soluções', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Manta Aquecedora', brand: 'FAITHFUL', model: '125 mL', supplier: 'Faithful Inst.', emission: '23/02/2026', revision: '--' },
+                                { name: 'Micrótomo', brand: 'LUPETEC', model: 'MRP 2015', supplier: 'Lupetec', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Seladora', brand: 'CETRO', model: 'P-280', supplier: 'Cetro Máquinas', emission: '08/07/2025', revision: '08/07/2027' },
+                                { name: 'Viscosímetro', brand: 'MARTE', model: 'MVD-20', supplier: 'Marte Científica', emission: '08/07/2025', revision: '08/07/2027' },
                             ]
                         },
                         {
@@ -665,9 +740,9 @@
                             icon: 'shield-check',
                             description: 'Padrões de higiene e segurança física nos laboratórios.',
                             items: [
-                                { name: 'Higienização das Mãos', brand: 'IFTO', model: 'POP.IFTO 001', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--', location: 'Geral', icon: 'hand', pdfUrl: 'https://drive.google.com/file/d/13w0855qxvGOJK9MMAPkZ3kPkogdDALeT/view?usp=drive_link', procedure: '1. Água e sabão para mãos visivelmente sujas.\n2. Fricção de palmas, pregas e unhas (60s).\n3. Álcool 70% quando visualmente limpas (30s).\n4. Seque com papel descartável de alta absorção.\n5. Não use adornos (anéis/relógios) no lab.', tables:[{title:"Resumo de Tempo", headers:["Método", "Duração"], rows:[["Lavação", "40-60 Segundos"], ["Antissepsia", "20-30 Segundos"]]}] },
-                                { name: 'Limpeza de Bancada', brand: 'IFTO', model: 'POP.IFTO 003', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--', location: 'Geral', icon: 'broom', pdfUrl: 'https://drive.google.com/file/d/1TQlcZU4UlEfN46pmjhhL-S-akVW01S2M/view?usp=drive_link', procedure: '1. Remova todos os materiais da bancada.\n2. Aplique desinfetante adequado (álcool 70% ou hipoclorito).\n3. Esfregue com pano limpo em movimentos circulares.\n4. Deixe agir por 5-10 minutos.\n5. Enxágue com água destilada e seque.', tables:[{title:"Desinfetantes Recomendados", headers:["Produto", "Concentração"], rows:[["Álcool 70%", "70%"], ["Hipoclorito de Sódio", "0.5%"]]}] },
-                                { name: 'Lavagem de Vidrarias', brand: 'IFTO', model: 'POP.IFTO 002', supplier: 'S. Lavagem', emission: '23/02/2026', revision: '--', location: 'DML', icon: 'glass-water', pdfUrl: 'https://drive.google.com/file/d/1XjJLllDH9D0fjoetRE_0UHlRN7UrdlbU/view?usp=drive_link', procedure: '1. Pré-limpeza mecânica com esponja suave.\n2. Imersão em detergente tensoativo indicado.\n3. Enxágue exaustivo em água corrente.\n4. Banho final com água destilada/deionizada.\n5. Secagem 60°C para vidraria comum.', tables:[{title:"Etapas do Fluxo", headers:["Fase", "Ação", "Material"], rows:[["I", "Descarte", "Resíduos"], ["II", "Ação Química", "Detergente"], ["III", "Acabamento", "Água Destilada"], ["IV", "Descontaminação", "Estufa 60°C"]]}] }
+                                { name: 'Higienização das Mãos', brand: 'IFTO', model: 'POP.IFTO 001', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--' },
+                                { name: 'Limpeza de Bancada', brand: 'IFTO', model: 'POP.IFTO 003', supplier: 'Biossegurança', emission: '23/02/2026', revision: '--' },
+                                { name: 'Lavagem de Vidrarias', brand: 'IFTO', model: 'POP.IFTO 002', supplier: 'S. Lavagem', emission: '23/02/2026', revision: '--' },
                             ]
                         }
                     ];
@@ -685,7 +760,7 @@
                         window.addEventListener('load', () => lucide.createIcons());
                         this.$watch('currentRoute', () => lucide.createIcons());
                         this.$watch('selectedItem', () => {
-                            if (this.selectedItem && this.getPdfStatus() === 'local-file') {
+                            if (this.selectedItem && this.getPdfStatus() !== 'no-file') {
                                 this.loadPdf();
                             }
                         });
@@ -759,44 +834,75 @@
                     }
                 },
 
-                isExternalUrl() {
-                    // Retorna true se a URL é Google Drive ou HTTP/HTTPS
-                    if (!this.selectedItem?.pdfUrl) return false;
-                    return this.selectedItem.pdfUrl.startsWith('http://') || 
-                           this.selectedItem.pdfUrl.startsWith('https://');
+                getPdfFilePath() {
+                    if (!this.selectedItem || !this.selectedLab) return null;
+                    const labId = this.selectedLab.id;
+                    const itemName = this.selectedItem.name;
+                    return PDF_MAPPING[labId]?.[itemName];
                 },
 
                 getPdfStatus() {
-                    // Retorna 'no-file', 'has-url' ou 'local-file'
-                    if (!this.selectedItem?.pdfUrl || this.selectedItem.pdfUrl === '') {
-                        return 'no-file';
+                    const filePath = this.getPdfFilePath();
+                    if (!filePath) return 'no-file';
+                    return this.pdfStatus;
+                },
+
+                getDownloadLink() {
+                    const filePath = this.getPdfFilePath();
+                    if (!filePath) return '#';
+                    return `https://github.com/jorgecavalcante-ops/labstracker/raw/main/${filePath}`;
+                },
+
+                async fetchPdfAsBlob(filePath) {
+                    try {
+                        const response = await fetch(`https://raw.githubusercontent.com/jorgecavalcante-ops/labstracker/main/${filePath}`);
+                        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                        return await response.blob();
+                    } catch (error) {
+                        console.error('Erro ao buscar PDF:', error);
+                        throw new Error(`Falha ao baixar o arquivo PDF: ${error.message}`);
                     }
-                    if (this.isExternalUrl()) {
-                        return 'has-url';
-                    }
-                    return 'local-file';
                 },
 
                 async loadPdf() {
                     try {
-                        if (!this.selectedItem?.pdfUrl || this.isExternalUrl()) return;
+                        const filePath = this.getPdfFilePath();
+                        if (!filePath) {
+                            this.pdfStatus = 'no-file';
+                            return;
+                        }
                         
-                        const pdfUrl = this.selectedItem.pdfUrl;
-                        const pdf = await pdfjsLib.getDocument(pdfUrl).promise;
+                        this.pdfStatus = 'loading';
+                        this.pdfError = '';
+                        
+                        // Limpar blob anterior
+                        if (this.pdfBlobUrl) {
+                            URL.revokeObjectURL(this.pdfBlobUrl);
+                        }
+                        
+                        // Buscar PDF como blob
+                        const pdfBlob = await this.fetchPdfAsBlob(filePath);
+                        this.pdfBlobUrl = URL.createObjectURL(pdfBlob);
+                        
+                        // Carregar PDF
+                        const pdf = await pdfjsLib.getDocument(this.pdfBlobUrl).promise;
                         this.pdfDoc = pdf;
                         this.totalPdfPages = pdf.numPages;
                         this.currentPdfPage = 1;
                         this.currentZoom = 100;
                         
                         await this.$nextTick();
+                        this.pdfStatus = 'ready';
                         this.renderPage();
                     } catch (error) {
                         console.error('Error loading PDF:', error);
+                        this.pdfStatus = 'error';
+                        this.pdfError = error.message;
                     }
                 },
 
                 async renderPage() {
-                    if (!this.pdfDoc) return;
+                    if (!this.pdfDoc || this.pdfStatus !== 'ready') return;
                     try {
                         const page = await this.pdfDoc.getPage(this.currentPdfPage);
                         const scale = this.currentZoom / 100;
